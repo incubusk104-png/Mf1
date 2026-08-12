@@ -1,0 +1,42 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Find and Build Gradle Project
+        run: |
+          GRADLEW_PATH=$(find . -name gradlew -type f | head -n 1)
+          
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "Error: gradlew file not found in repository."
+            exit 1
+          fi
+          
+          GRADLE_DIR=$(dirname "$GRADLEW_PATH")
+          echo "Found gradlew in: $GRADLE_DIR"
+          
+          chmod +x "$GRADLEW_PATH"
+          cd "$GRADLE_DIR"
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: |
+            **/build/outputs/apk/debug/*.apk
+            **/*.apk
+            
