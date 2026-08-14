@@ -147,6 +147,7 @@ import com.rork.mindsetframestracker.ui.stringsFor
 import com.rork.mindsetframestracker.ui.components.AuthMessageBanner
 import com.rork.mindsetframestracker.ui.components.BrandLogos
 import com.rork.mindsetframestracker.ui.components.PremiumSheet
+import com.rork.mindsetframestracker.ui.components.PasswordField
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -158,11 +159,6 @@ import java.time.temporal.ChronoUnit
 /** Single support/contact address used in the policy, About, and store listing. */
 private const val CONTACT_EMAIL = "mindsetframes2026@gmail.com"
 
-/**
- * An outbound brand link shown in the low-key follow row (About card only).
- * Rendered as the official logo only — no text label; [label] feeds the
- * screen-reader description.
- */
 private data class SocialLink(
     val label: String,
     val url: String,
@@ -197,7 +193,6 @@ private val socialLinks: List<SocialLink> = listOf(
     ),
 )
 
-/** In-app privacy policy sections shown in the Privacy Policy dialog. */
 private val privacyPolicySections: List<Pair<String, String>> = listOf(
     "Data we collect" to "Mindset Frames is built privacy-first. The app itself collects no personal information and works fully without an account. Your habits, check-ins, moods, and settings are stored locally on your device.\n\nIf you choose to sign in for cloud backup, your habit data is stored in a private database tied to your account so you can restore it on another device.",
     "Third-party services" to "• Huawei Account Kit (optional) can be used to create your backup account. We request only basic profile authorization — your Huawei ID and email address. We never receive your contacts, files, or any other personal data. See Huawei's privacy policy at consumer.huawei.com/privacy/privacy-policy.\n• Supabase provides the cloud backup database and authentication. Your data is protected by Row Level Security — only your authenticated account can access it. See supabase.com/privacy.",
@@ -212,7 +207,6 @@ private val privacyPolicySections: List<Pair<String, String>> = listOf(
 
 private const val PRIVACY_POLICY_UPDATED = "Last updated: August 4, 2026"
 
-/** In-app Terms & Conditions sections shown in the Terms dialog. */
 private val termsSections: List<Pair<String, String>> = listOf(
     "Acceptance of terms" to "By downloading or using Mindset Frames you agree to these Terms & Conditions and our Privacy Policy. If you do not agree, please do not use the app.",
     "The service" to "Mindset Frames is a mood-aware habit tracker for personal reflection and self-improvement. The free tier includes up to 5 habits, daily prompts and quotes, weekly progress, and the classic theme. Mindset Frames Premium unlocks extended prompt packs, the exclusive quote library, advanced weekly insights, 12 exclusive accent themes, all 26 languages, unlimited habits, and PDF progress reports. Premium is offered through our Huawei AppGallery listing. There are no ads anywhere in the app.",
@@ -226,18 +220,12 @@ private val termsSections: List<Pair<String, String>> = listOf(
 
 private const val TERMS_UPDATED = "Last updated: August 4, 2026"
 
-/**
- * Opens an outbound link — Android app links route it into the installed
- * Facebook/Reddit app when available, otherwise the browser. Failures are
- * swallowed silently (e.g. a device with no browser at all).
- */
 private fun openExternalLink(context: android.content.Context, url: String) {
     runCatching {
         context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
     }
 }
 
-/** Settings: appearance, motion, reminder time, premium status. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: AppViewModel) {
@@ -279,7 +267,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             style = MaterialTheme.typography.headlineMedium,
         )
 
-        // Profile header — the companion avatar doubles as the Studio entry.
         ProfileHeader(
             email = syncState.email,
             avatar = settings.avatar,
@@ -287,8 +274,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Premium status / upgrade — Premium is unlocked through the Huawei
-        // AppGallery listing; free users see the upgrade CTA.
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
@@ -323,8 +308,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         )
                     }
                 }
-                // ── Premium impact — a compact visual of what Premium
-                // changes: each pillar lights up fully once unlocked.
                 Row(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier
@@ -354,7 +337,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                textAlign = TextAlign.Center,
                                 maxLines = 2,
                                 modifier = Modifier.padding(top = 4.dp),
                             )
@@ -384,8 +367,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Companion & wellbeing — declares the newest free features so
-        // they're discoverable outside their Home entry points.
         SettingsCard(title = s.settingsWellbeingTitle) {
             WellbeingRow(
                 icon = Icons.Outlined.Face,
@@ -412,7 +393,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             )
         }
 
-        // Ads status — the app is completely ad-free.
         SettingsCard(title = s.settingsAds) {
             Text(
                 text = s.settingsAdsPremium,
@@ -421,11 +401,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             )
         }
 
-        // Account & cloud sync — signed-in management only, placed right
-        // under the profile so it's easy to find. Creating or connecting an
-        // account happens through the save-your-progress sheet (auto-shown
-        // once on Today, re-openable below when signed out). The card grows
-        // in on sign-in and collapses away on sign-out or account deletion.
         val accountCardVisible = remember {
             MutableTransitionState(syncState.available && syncState.email != null)
         }
@@ -444,14 +419,13 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         onSignOut = { viewModel.signOut() },
                         onSyncNow = { viewModel.syncNow() },
                         onDeleteAccount = { viewModel.deleteAccount() },
+                        onChangePassword = { current, new -> viewModel.changePassword(current, new) },
+                        isPremium = settings.hasFeatureAccess(),
                     )
                 }
             }
         }
 
-        // Signed-out backup entry — the one-time popup is easy to dismiss,
-        // so Settings keeps a way back into cloud backup. Opens the same
-        // save-your-progress sheet (the single surface where auth happens).
         val backupEntryVisible = remember {
             MutableTransitionState(syncState.available && syncState.email == null)
         }
@@ -493,8 +467,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Sign-out / account-deletion confirmation — the account card is gone
-        // by then, so a standalone banner carries the message, then clears.
         val signedOutMessage = syncState.message
         if (syncState.available && syncState.email == null && signedOutMessage != null) {
             AuthMessageBanner(message = signedOutMessage, isError = syncState.isError)
@@ -504,9 +476,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Progress report — print-ready PDF export covering a full month or
-        // any custom date range, kept with the profile cluster so it reads
-        // as "your data, your report".
         SettingsCard(title = "Progress report") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -605,7 +574,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Appearance
         SettingsCard(title = "Appearance") {
             Text(
                 text = "Theme",
@@ -700,7 +668,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 4.dp),
             ) {
-                // "classic" is free; all other packs are Premium exclusives.
                 val packs = listOf(
                     "classic" to "Terracotta",
                     "sunrise" to "Sunrise",
@@ -739,9 +706,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Language — dual-free model: English (US & UK) is free everywhere,
-        // one locale-matched regional language is free for this install, and
-        // the other languages are Premium exclusives.
         SettingsCard(title = s.settingsLanguage) {
             Text(
                 text = s.settingsLanguageDesc,
@@ -821,8 +785,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         }
                     } else {
                         if (lang == settings.freeRegionalLanguage && !hasAccess) {
-                            // Locale-matched regional unlock — mark it so users
-                            // see why this one language is free for them.
                             Surface(
                                 shape = MaterialTheme.shapes.small,
                                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -846,11 +808,11 @@ fun SettingsScreen(viewModel: AppViewModel) {
                                     .size(20.dp),
                             )
                         }
+                    }
                 }
             }
         }
 
-        // Reminder
         SettingsCard(title = s.settingsDailyReminder, animateSize = !settings.reducedMotion) {
             Text(
                 text = s.settingsQuickPick,
@@ -964,7 +926,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Streak protection — evening alert only when today's habits aren't done
         SettingsCard(title = "Streak protection", animateSize = !settings.reducedMotion) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1076,7 +1037,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Weekly recap — one Sunday-evening summary of the week
         SettingsCard(title = "Weekly recap", animateSize = !settings.reducedMotion) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1153,7 +1113,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Share streak
         val checkInStreak = data.dailyCheckInStreak()
         if (checkInStreak > 0) {
             SettingsCard(title = "Your streak") {
@@ -1204,10 +1163,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // About
         SettingsCard(title = "About") {
-            // Highlighted version chip — real build values so store reviews
-            // and support tickets always reference the exact release.
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -1261,8 +1217,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 )
             }
 
-            // Terms & Conditions — the service, the premium tier, fair use,
-            // and liability, fully disclosed in-app.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -1298,8 +1252,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 )
             }
 
-            // Follow row — deliberately low-key and Settings-only. Outbound
-            // links never appear on the daily check-in screen (core loop).
             val aboutContext = LocalContext.current
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
@@ -1310,8 +1262,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // Official logos only — no text labels. Each is a 48dp tap
-            // target; the platform name is exposed to screen readers instead.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1513,7 +1463,6 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         onClick = {
                             val newMinutes = presetTimeState.hour * 60 + presetTimeState.minute
                             viewModel.setPresetTime(preset.id, newMinutes)
-                            // Keep the live reminder in sync when this preset is the active one.
                             if (settings.notificationMinutes == currentMinutes) {
                                 viewModel.setNotificationMinutes(newMinutes)
                                 timeJustSaved = true
@@ -1629,14 +1578,8 @@ fun SettingsScreen(viewModel: AppViewModel) {
             },
         )
     }
-    }
 }
 
-/**
- * Full privacy policy shown inside the app — no external website needed.
- * AppGallery Connect still requires a hosted URL in the listing, but users
- * read it here.
- */
 @Composable
 fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
     AlertDialog(
@@ -1684,11 +1627,6 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
     )
 }
 
-/**
- * In-app Terms & Conditions covering the service, the premium tier,
- * acceptable use, and liability — required disclosure for the Huawei
- * AppGallery listing.
- */
 @Composable
 fun TermsDialog(onDismiss: () -> Unit) {
     AlertDialog(
@@ -1736,11 +1674,6 @@ fun TermsDialog(onDismiss: () -> Unit) {
     )
 }
 
-/**
- * Custom date-range picker for the PDF report. Future dates can't be
- * selected, ranges are capped at roughly a year so the daily chart stays
- * readable, and Export enables once both ends of the range are picked.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReportRangeDialog(
@@ -1802,16 +1735,9 @@ private fun ReportRangeDialog(
     }
 }
 
-/** The range picker reports UTC-midnight millis for each picked calendar date. */
 private fun utcLocalDate(utcTimeMillis: Long): LocalDate =
     Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
 
-/**
- * Profile header showing the user's avatar (initial), display name/email, and
- * a small premium badge when premium features are unlocked. Tapping the badge
- * opens a benefits explainer dialog (when premium) or the upgrade sheet (when
- * not premium).
- */
 @Composable
 private fun ProfileHeader(
     email: String?,
@@ -1857,10 +1783,6 @@ private fun ProfileHeader(
     }
 }
 
-/**
- * One row in the Companion & wellbeing card: icon, title, description, and
- * an optional trailing action that opens the feature.
- */
 @Composable
 private fun WellbeingRow(
     icon: ImageVector,
@@ -1902,28 +1824,24 @@ private fun WellbeingRow(
     }
 }
 
-/** "Just now" for fresh backups, then Android's relative time ("5 min. ago"). */
 private fun formatBackupTime(lastSyncAtMs: Long): String {
     val elapsed = System.currentTimeMillis() - lastSyncAtMs
     return if (elapsed < 60_000L) "Just now"
     else DateUtils.getRelativeTimeSpanString(lastSyncAtMs).toString()
 }
 
-/**
- * Signed-in account management: identity summary (avatar, email, provider),
- * backup freshness, manual sync, and sign-out behind a confirmation dialog.
- * Account creation/sign-in is deliberately NOT offered here — it lives only
- * in the save-your-progress popup on the Today screen.
- */
 @Composable
 private fun AccountSection(
     syncState: SyncUiState,
     onSignOut: () -> Unit,
     onSyncNow: () -> Unit,
     onDeleteAccount: () -> Unit,
+    onChangePassword: (current: String, new: String) -> Unit,
+    isPremium: Boolean,
 ) {
     var showSignOutConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showChangePassword by remember { mutableStateOf(false) }
     val email = syncState.email.orEmpty()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1974,7 +1892,6 @@ private fun AccountSection(
         }
     }
 
-    // Backup freshness — relative time keeps it glanceable.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -2001,7 +1918,7 @@ private fun AccountSection(
 
     Button(
         onClick = onSyncNow,
-        enabled = !syncState.busy && syncState.cooldownSecondsLeft == 0,
+        enabled = !syncState.busy,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
@@ -2016,15 +1933,27 @@ private fun AccountSection(
                 modifier = Modifier.size(18.dp),
             )
         }
-        Text(
-            text = if (syncState.cooldownSecondsLeft > 0) {
-                "Synced — ready in ${syncState.cooldownSecondsLeft}s"
-            } else {
-                "Sync now"
-            },
-            modifier = Modifier.padding(start = 8.dp),
-        )
+        Text(text = "Sync now", modifier = Modifier.padding(start = 8.dp))
     }
+
+    if (syncState.provider == "email") {
+        OutlinedButton(
+            onClick = { showChangePassword = true },
+            enabled = !syncState.busy,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .defaultMinSize(minHeight = 48.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Lock,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(text = "Change password", modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+
     OutlinedButton(
         onClick = { showSignOutConfirm = true },
         enabled = !syncState.busy,
@@ -2045,7 +1974,6 @@ private fun AccountSection(
         Text(text = "Sign out", modifier = Modifier.padding(start = 8.dp))
     }
 
-    // Danger zone — Huawei AppGallery requires an in-app account deletion path.
     HorizontalDivider(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
@@ -2073,7 +2001,6 @@ private fun AccountSection(
         modifier = Modifier.fillMaxWidth(),
     )
 
-    // Hidden while the delete dialog is open — errors show inside the dialog.
     if (!showDeleteConfirm) {
         syncState.message?.let { message ->
             AuthMessageBanner(
@@ -2084,10 +2011,20 @@ private fun AccountSection(
         }
     }
 
+    if (showChangePassword) {
+        ChangePasswordDialog(
+            busy = syncState.busy,
+            errorMessage = syncState.message?.takeIf { syncState.isError },
+            onConfirm = { current, new -> onChangePassword(current, new) },
+            onDismiss = { showChangePassword = false },
+        )
+    }
+
     if (showDeleteConfirm) {
         DeleteAccountDialog(
             email = email,
             busy = syncState.busy,
+            isPremium = isPremium,
             errorMessage = syncState.message?.takeIf { syncState.isError },
             onConfirm = onDeleteAccount,
             onDismiss = { showDeleteConfirm = false },
@@ -2134,16 +2071,97 @@ private fun AccountSection(
     }
 }
 
-/**
- * Irreversible-action dialog for account deletion. The destructive button
- * stays disabled until the user types DELETE exactly (all caps), the whole
- * dialog locks while the server call runs, and failures surface inline.
- * Success closes it automatically — the signed-in account card unmounts.
- */
+@Composable
+private fun ChangePasswordDialog(
+    busy: Boolean,
+    errorMessage: String?,
+    onConfirm: (current: String, new: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var current by remember { mutableStateOf("") }
+    var new by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    val mismatch = confirm.isNotEmpty() && new != confirm
+    val armed = current.isNotBlank() && new.isNotBlank() && new == confirm && new.length >= 8
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+        title = { Text("Change password") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                PasswordField(
+                    value = current,
+                    onValueChange = { current = it },
+                    label = "Current password",
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PasswordField(
+                    value = new,
+                    onValueChange = { new = it },
+                    label = "New password (min 8 characters)",
+                    enabled = !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                )
+                PasswordField(
+                    value = confirm,
+                    onValueChange = { confirm = it },
+                    label = "Confirm new password",
+                    enabled = !busy,
+                    isError = mismatch,
+                    supportingText = { if (mismatch) Text("Passwords don't match") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                )
+                errorMessage?.let { message ->
+                    AuthMessageBanner(
+                        message = message,
+                        isError = true,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(current, new) },
+                enabled = armed && !busy,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Update password")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !busy,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
 @Composable
 private fun DeleteAccountDialog(
     email: String,
     busy: Boolean,
+    isPremium: Boolean,
     errorMessage: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -2175,6 +2193,38 @@ private fun DeleteAccountDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+
+                if (isPremium) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.WorkspacePremium,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = "You have active Premium. Deleting your account " +
+                                    "automatically forfeits Premium and any active features — " +
+                                    "this is permanent and NOT refunded.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = confirmation,
                     onValueChange = { confirmation = it },
@@ -2235,7 +2285,6 @@ private fun DeleteAccountDialog(
     )
 }
 
-/** A quick-pick reminder preset whose default time the user can customize via long-press. */
 private data class ReminderPreset(
     val id: String,
     val label: String,
@@ -2249,10 +2298,6 @@ private val reminderPresets = listOf(
     ReminderPreset("evening", "Evening", Icons.Outlined.DarkMode, 20 * 60),
 )
 
-/**
- * FilterChip-style preset button with long-press support (FilterChip has no
- * onLongClick, so this uses combinedClickable on a styled Surface).
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PresetChip(
@@ -2368,6 +2413,5 @@ private fun formatMinutes(minutes: Int): String {
     return time.format(DateTimeFormatter.ofPattern("h:mm a"))
 }
 
-/** "July 2026"-style label for the report month picker. */
 private fun monthLabel(month: YearMonth): String =
     month.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
