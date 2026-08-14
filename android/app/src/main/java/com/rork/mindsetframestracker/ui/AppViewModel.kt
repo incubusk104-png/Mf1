@@ -62,8 +62,9 @@ data class SyncUiState(
     val busy: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
-    /** Seconds remaining before another manual sync is allowed (0 = ready). */
-    val cooldownSecondsLeft: Int = 0,
+    /** One-shot flag: sign-up hit "email already registered" — UI should
+     * switch to the Sign In tab, then call [AppViewModel.consumeSuggestSignIn]. */
+    val suggestSignIn: Boolean = false,
 )
 
 /** Minimum gap between manual syncs, to avoid spamming Supabase with duplicate pushes. */
@@ -146,9 +147,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * Aligns the one-shot companion alarms with persisted state at launch.
      * Safe to call repeatedly — stale alarms are cancelled/replaced.
      */
-    private fun syncCompanionReminders() {
-// No trial payment reminders needed — no billing system.
-    }
+    private val syncCompanionReminders: () -> Unit = {}
 
     /**
      * Offline resilience: if a previous session left local changes that never
@@ -193,17 +192,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (_state.value.settings.authPromptDone) return
         if (!supabaseSync.isConfigured || supabaseSync.isSignedIn) return
         if (!_state.value.settings.onboardingDone) return
-        // Privacy consent is NOT required to SHOW the sheet — the consent
-        // checkbox lives inside it and gates the login buttons themselves,
-        // which is what AppGallery's consent-before-login-trigger rule needs.
         markAuthPromptDone()
         _showAuthPrompt.value = true
     }
 
-    /**
-     * Re-opens the save-your-progress sheet on demand — Settings' "Back up &
-     * restore" entry for anyone who dismissed the one-time popup earlier.
-     */
     fun openAuthPrompt() {
         if (!supabaseSync.isConfigured || supabaseSync.isSignedIn) return
         markAuthPromptDone()
@@ -222,15 +214,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Privacy consent ────────────────────────────────────────
 
-    /**
-     * Records that the user has read and accepted the Privacy Policy.
-     * Required by Huawei AppGallery before any login trigger fires.
-     */
     fun acceptPrivacyConsent() {
         update { it.copy(settings = it.settings.copy(privacyConsentAccepted = true)) }
     }
 
-    /** True when the user has accepted the privacy policy. */
     fun isPrivacyConsentAccepted(): Boolean = _state.value.settings.privacyConsentAccepted
 
     private fun update(transform: (AppData) -> AppData) {
@@ -262,19 +249,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val error = supabaseSync.signIn(email, password)
             if (error != null) {
-                _syncState.value = _syncState.value.copy(busy = false, message = error, isError = true)
+                _syncState.value = _syncState.value.copy(
+                    busy = false,
+                    message = friendlySignInError(error),
+                    isError = true,
+                )
                 return@launch
             }
             onSignedIn("Signed in")
         }
     }
 
-    /**
-     * Huawei ID sign-in — sends the Huawei-signed ID token to the backend,
-     * which verifies it with Huawei's account server and returns a Supabase
-     * session. The user never sees a password; nothing on-device can derive
-     * one.
-     */
+    private fun friendlySignInError(raw: String): String {
+        val normalized = raw.lowercase()
+        return when {
+            "invalid login credentials" in normalized || "invalid email or password" in normalized ->
+                "That email or password doesn't match our records. Double-check for typos, " +
+                        "use \"Forgot password?\" to reset it, or create a new account if you " +
+                        "haven't signed up yet."
+            "email not confirmed" in normalized ->
+                "Please confirm your email first — check your inbox for the verification link we sent."
+            else -> raw
+        }
+    }
+
     fun signInWithHuawei(idToken: String, email: String?, displayName: String? = null) {
         if (_syncState.value.busy) return
         if (!supabaseSync.isConfigured) {
@@ -292,18 +290,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Surfaces a Huawei Account Kit failure inside the auth sheet. */
     fun onHuaweiSignInFailed(message: String) {
         rejectAuth(message)
     }
 
-    /**
-     * Dual-free language model: resolves the ONE regional language this
-     * install unlocks for free. Runs once — the grant is persisted (and
-     * synced) the first time a regional language can be determined. An
-     * already-selected non-English language is grandfathered in first so an
-     * update can never lock anyone out of their active language.
-     */
     private fun ensureRegionalLanguage() {
         val settings = _state.value.settings
         if (settings.freeRegionalLanguage != null) return
@@ -315,13 +305,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         queueSync()
     }
 
-    /**
-     * Consumes an auth-callback deep link from the mindsetframes.online
-     * web-bridge (email confirmation, magic link, recovery). Each link is
-     * processed at most once — a persisted signature guard drops replays —
-     * and the forwarded one-time refresh token is exchanged server-side,
-     * which rotates it immediately.
-     */
     fun handleAuthDeepLink(uri: Uri) {
         val signature = runCatching {
             MessageDigest.getInstance("SHA-256")
@@ -357,8 +340,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // Verified link without tokens (older template or manual hand-off):
-        // confirm success and route the user to the sign-in sheet.
         if (params["type"] != null && params["type"] != "manual") {
             _syncState.value = _syncState.value.copy(
                 message = "Email verified! Sign in with your password to finish.",
@@ -368,7 +349,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Merges query + fragment parameters of an auth deep link (fragment wins). */
     private fun authLinkParams(uri: Uri): Map<String, String> {
         val params = mutableMapOf<String, String>()
         runCatching {
@@ -389,7 +369,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return params
     }
 
-    /** Shared post-auth path: pull the cloud snapshot, then queue a backup of local data. */
     private suspend fun onSignedIn(successMessage: String) {
         restoreFromCloud()
         _syncState.value = _syncState.value.copy(
@@ -406,20 +385,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         alignDailyBackup()
     }
 
-    /** Creates an account; when the project requires email confirmation, shows that message. */
     fun signUp(email: String, password: String) {
         if (_syncState.value.busy) return
         validateCredentials(email, password, forSignUp = true)?.let { rejectAuth(it); return }
-        _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
+        _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false, suggestSignIn = false)
         viewModelScope.launch {
             val message = supabaseSync.signUp(email, password)
             val signedIn = supabaseSync.sessionEmail != null
+            val alreadyExists = message != null && !signedIn && isAlreadyRegisteredError(message)
             _syncState.value = _syncState.value.copy(
                 busy = false,
                 email = supabaseSync.sessionEmail,
                 provider = supabaseSync.sessionProvider,
-                message = message ?: "Account created — you're signed in",
+                message = when {
+                    alreadyExists -> "An account with this email already exists. Please log in instead."
+                    else -> message ?: "Account created — you're signed in"
+                },
                 isError = message != null && !signedIn && !message.startsWith("Account created"),
+                suggestSignIn = alreadyExists,
             )
             if (signedIn) {
                 queueSync()
@@ -428,9 +411,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun isAlreadyRegisteredError(message: String): Boolean {
+        val normalized = message.lowercase()
+        return "already registered" in normalized || "already exists" in normalized || "user_already_exists" in normalized
+    }
+
+    fun consumeSuggestSignIn() {
+        _syncState.value = _syncState.value.copy(suggestSignIn = false)
+    }
+
     fun signOut() {
         if (supabaseSync.sessionProvider == "huawei") {
-            // Revoke the cached HMS state so the next sign-in shows the picker.
             HuaweiAuthClient.signOut(getApplication())
         }
         supabaseSync.signOut()
@@ -485,12 +476,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
         viewModelScope.launch {
-            val error = supabaseSync.sendPasswordReset(email)
+            val error = supabaseSync.sendPasswordReset(trimmed)
             _syncState.value = _syncState.value.copy(
                 busy = false,
-                message = error ?: "Password reset email sent — check your inbox",
+                message = error ?: "If an account exists for $trimmed, a reset link is on its way.",
                 isError = error != null,
             )
+        }
+    }
+
+    fun changePassword(currentPassword: String, newPassword: String) {
+        if (_syncState.value.busy) return
+        val email = _syncState.value.email
+        if (_syncState.value.provider != "email" || email.isNullOrBlank()) {
+            rejectAuth("Password changes are only available for email accounts.")
+            return
+        }
+        if (currentPassword.isBlank()) {
+            rejectAuth("Enter your current password")
+            return
+        }
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            rejectAuth("Use at least $MIN_PASSWORD_LENGTH characters for your new password")
+            return
+        }
+        if (newPassword == currentPassword) {
+            rejectAuth("Your new password must be different from the current one")
+            return
+        }
+        _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
+        viewModelScope.launch {
+            val reauthError = supabaseSync.signIn(email, currentPassword)
+            if (reauthError != null) {
+                _syncState.value = _syncState.value.copy(
+                    busy = false,
+                    message = "Current password is incorrect.",
+                    isError = true,
+                )
+                return@launch
+            }
+            val error = supabaseSync.updatePassword(newPassword)
+            _syncState.value = if (error != null) {
+                _syncState.value.copy(busy = false, message = error, isError = true)
+            } else {
+                _syncState.value.copy(busy = false, message = "Password updated.", isError = false)
+            }
         }
     }
 
@@ -519,9 +549,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var lastSyncAttemptAt = 0L
-    private var cooldownJob: kotlinx.coroutines.Job? = null
     private var queuedSyncJob: kotlinx.coroutines.Job? = null
-
     private val queuedSyncDelayMs = 4_000L
 
     fun queueSync() {
@@ -530,14 +558,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         queuedSyncJob?.cancel()
         queuedSyncJob = viewModelScope.launch {
             kotlinx.coroutines.delay(queuedSyncDelayMs)
-            while (_syncState.value.busy || _syncState.value.cooldownSecondsLeft > 0) {
+            while (_syncState.value.busy) {
                 kotlinx.coroutines.delay(1_000)
             }
             if (!supabaseSync.isOnline) return@launch
             if (isBatteryLow(getApplication())) return@launch
-            // Visible progress: the global status banner shows a spinner while
-            // the automatic backup runs, and a persistent alert with Retry if
-            // it fails — background syncs are never silent anymore.
             _syncState.value = _syncState.value.copy(busy = true)
             val error = supabaseSync.pushSnapshot(_state.value)
             if (error == null) {
@@ -556,7 +581,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Retry action for the sync-failure alert — clears it and re-runs the backup. */
     fun retrySync() {
         lastSyncAttemptAt = 0L
         _syncState.value = _syncState.value.copy(message = null, isError = false)
@@ -566,7 +590,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun syncNow() {
         val now = System.currentTimeMillis()
         val state = _syncState.value
-        if (!supabaseSync.isConfigured || state.busy || state.cooldownSecondsLeft > 0) return
+        if (!supabaseSync.isConfigured || state.busy) return
         if (now - lastSyncAttemptAt < SYNC_COOLDOWN_MS) return
         if (!supabaseSync.isOnline) {
             if (supabaseSync.isSignedIn) supabaseSync.hasPendingPush = true
@@ -588,11 +612,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _syncState.value = state.copy(busy = true, message = null, isError = false)
         viewModelScope.launch {
             val error = supabaseSync.pushSnapshot(_state.value)
-            if (error == null) {
-                supabaseSync.hasPendingPush = false
-            } else {
-                // Never let the cooldown block an immediate retry of a failure.
+            if (error != null) {
                 lastSyncAttemptAt = 0L
+            } else {
+                supabaseSync.hasPendingPush = false
             }
             _syncState.value = _syncState.value.copy(
                 busy = false,
@@ -600,20 +623,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 isError = error != null,
                 lastSyncAtMs = supabaseSync.lastSyncAtMs,
             )
-            if (error == null) startSyncCooldown()
-        }
-    }
-
-    private fun startSyncCooldown() {
-        cooldownJob?.cancel()
-        cooldownJob = viewModelScope.launch {
-            var secondsLeft = (SYNC_COOLDOWN_MS / 1000L).toInt()
-            while (secondsLeft > 0) {
-                _syncState.value = _syncState.value.copy(cooldownSecondsLeft = secondsLeft)
-                kotlinx.coroutines.delay(1_000)
-                secondsLeft--
-            }
-            _syncState.value = _syncState.value.copy(cooldownSecondsLeft = 0)
         }
     }
 
@@ -632,7 +641,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshCompanionUnlocks()
     }
 
-    /** Free tier caps at [MAX_FREE_HABITS] habits; Premium removes the cap. */
     fun canAddHabit(): Boolean =
         _state.value.settings.hasFeatureAccess() || _state.value.habits.size < MAX_FREE_HABITS
 
@@ -807,7 +815,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLanguage(language: com.rork.mindsetframestracker.data.AppLanguage) {
         update { it.copy(settings = it.settings.copy(language = language)) }
-        // Language choice is part of the synced settings payload — back it up.
         queueSync()
     }
 
@@ -827,9 +834,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshCompanionUnlocks()
     }
 
-    fun markReviewPromptShown() {
-        // No-op — in-app review removed (Google Play Review API not available on HMS).
-    }
+    fun markReviewPromptShown() {}
 
     fun shouldShowReviewPrompt(streak: Int): Boolean = false
 
