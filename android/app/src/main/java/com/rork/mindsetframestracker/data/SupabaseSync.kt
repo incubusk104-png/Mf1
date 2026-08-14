@@ -104,6 +104,8 @@ class SupabaseSync(context: Context) {
             prefs.edit().putBoolean(KEY_PENDING_PUSH, value).apply()
         }
 
+    private var lastSignUpIdentitiesWasEmpty = false
+
     private val sessionUserId: String? get() = prefs.getString(KEY_USER_ID, null)
     private val accessToken: String? get() =
         prefs.getString(KEY_ACCESS_TOKEN, null)?.let(TokenCipher::open)
@@ -148,7 +150,14 @@ class SupabaseSync(context: Context) {
     private data class AuthCredentials(val email: String, val password: String)
 
     @Serializable
-    private data class AuthUser(val id: String = "", val email: String? = null)
+    private data class AuthIdentity(val id: String? = null)
+
+    @Serializable
+    private data class AuthUser(
+        val id: String = "",
+        val email: String? = null,
+        val identities: List<AuthIdentity>? = null,
+    )
 
     @Serializable
     private data class AuthSession(
@@ -243,6 +252,7 @@ class SupabaseSync(context: Context) {
      */
     suspend fun signUp(email: String, password: String): String? {
         if (!isConfigured) return "Cloud sync is not configured"
+        lastSignUpIdentitiesWasEmpty = false
         return try {
             val response = client.post("$baseUrl/auth/v1/signup") {
                 header("apikey", anonKey)
@@ -250,7 +260,14 @@ class SupabaseSync(context: Context) {
                 setBody(AuthCredentials(email.trim(), password))
             }
             if (!response.status.isSuccess()) return authError(response)
+            
             val session = response.body<AuthSession>()
+            val identities = session.user?.identities
+            if (identities != null && identities.isEmpty()) {
+                lastSignUpIdentitiesWasEmpty = true
+                return "This email is already registered. Please log in instead."
+            }
+
             if (session.access_token.isNullOrBlank()) {
                 "Account created — check $email to confirm, then sign in."
             } else {
@@ -261,6 +278,8 @@ class SupabaseSync(context: Context) {
             "Couldn't reach the server. Check your connection and try again."
         }
     }
+
+    fun lastSignUpIdentitiesEmpty(): Boolean = lastSignUpIdentitiesWasEmpty
 
     /**
      * Completes the email-confirmation web-bridge: the site forwards the
