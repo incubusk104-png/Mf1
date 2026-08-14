@@ -65,10 +65,20 @@ data class AppSettings(
      */
     val isPremium: Boolean = false,
     /**
-     * App display language. English (US/UK) and Tagalog are free; all other
+     * App display language. English (US/UK) is free everywhere, one regional
+     * language ([freeRegionalLanguage]) is free for this install; all other
      * languages are Premium.
      */
     val language: AppLanguage = DEFAULT_LANGUAGE,
+    /**
+     * The ONE regional language this install unlocked for free, resolved
+     * from the device locale on first launch (e.g. Simplified Chinese in
+     * China, Tagalog in the Philippines). Null when the locale maps to no
+     * supported language (plain English regions). Persisted locally and
+     * synced to Supabase inside the settings payload so the unlock follows
+     * the user across restores.
+     */
+    val freeRegionalLanguage: AppLanguage? = null,
     /**
      * Achievement badges earned by completing all habits for consecutive
      * days. Once earned, a badge is permanent — it stays even if the streak

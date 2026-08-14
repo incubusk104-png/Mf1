@@ -138,7 +138,7 @@ import com.rork.mindsetframestracker.util.StreakShare
 import com.rork.mindsetframestracker.data.ThemeMode
 import com.rork.mindsetframestracker.data.AppLanguage
 import com.rork.mindsetframestracker.data.languagePickerOrder
-import com.rork.mindsetframestracker.data.isFreeLanguage
+import com.rork.mindsetframestracker.data.isLanguageUnlocked
 import com.rork.mindsetframestracker.data.hasFeatureAccess
 import com.rork.mindsetframestracker.ui.AppViewModel
 import com.rork.mindsetframestracker.ui.SyncUiState
@@ -739,8 +739,9 @@ fun SettingsScreen(viewModel: AppViewModel) {
             }
         }
 
-        // Language — English (US & UK) and Tagalog are free; the other
-        // languages are Premium exclusives.
+        // Language — dual-free model: English (US & UK) is free everywhere,
+        // one locale-matched regional language is free for this install, and
+        // the other languages are Premium exclusives.
         SettingsCard(title = s.settingsLanguage) {
             Text(
                 text = s.settingsLanguageDesc,
@@ -748,10 +749,10 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
-            val languages = languagePickerOrder
+            val languages = languagePickerOrder(settings.freeRegionalLanguage)
             languages.forEach { lang ->
                 val isSelected = settings.language == lang
-                val isLocked = !hasAccess && !lang.isFreeLanguage
+                val isLocked = !settings.isLanguageUnlocked(lang)
                 val label = if (lang == AppLanguage.ENGLISH_US) s.settingsEnglishDefault else lang.displayName
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -818,13 +819,33 @@ fun SettingsScreen(viewModel: AppViewModel) {
                                 )
                             }
                         }
-                    } else if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
+                    } else {
+                        if (lang == settings.freeRegionalLanguage && !hasAccess) {
+                            // Locale-matched regional unlock — mark it so users
+                            // see why this one language is free for them.
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ) {
+                                Text(
+                                    text = s.settingsLanguageRegionalFree,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .padding(start = 6.dp)
+                                    .size(20.dp),
+                            )
+                        }
                 }
             }
         }

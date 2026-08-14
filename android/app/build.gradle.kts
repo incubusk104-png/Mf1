@@ -63,7 +63,7 @@ android {
         applicationId = "com.mindsetframes.habittracker"
         minSdk = 24
         targetSdk = 36
-        versionCode = 18
+        versionCode = 19
         versionName = "1.0"
 
         val supabaseUrl = resolveRorkValue("SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_URL", "mindset.supabaseUrl")

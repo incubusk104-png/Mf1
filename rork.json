@@ -10,6 +10,11 @@
       "name": "Backend",
       "path": "backend",
       "framework": "supabase"
+    },
+    {
+      "name": "Mindset Frames Web",
+      "path": "web",
+      "framework": "web"
     }
   ]
 }

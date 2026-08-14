@@ -1,11 +1,17 @@
 package com.rork.mindsetframestracker.data
 
 import kotlinx.serialization.Serializable
+import java.util.Locale
 
 /**
- * Supported app languages. English (US) is the free default; English (UK) and
- * Tagalog / Taglish are also free. All other languages are Premium-exclusive
- * features gated behind the language selector in Settings.
+ * Supported app languages under the dual-free model:
+ *
+ * - English (US & UK) is free everywhere.
+ * - ONE regional language — matched to the device locale on first launch —
+ *   is unlocked free automatically (e.g. Simplified Chinese in China,
+ *   Tagalog in the Philippines). See [regionalLanguageFor].
+ * - Every other language is a Premium exclusive gated behind the language
+ *   selector in Settings.
  *
  * [displayName] is the native name shown in the UI; [englishName] is used for
  * A-Z sorting in the picker; [flagEmoji] is a regional indicator pair for
@@ -54,26 +60,99 @@ enum class AppLanguage(
 /** Default language for free-tier users and fresh installs. */
 val DEFAULT_LANGUAGE: AppLanguage = AppLanguage.ENGLISH_US
 
-/**
- * Languages available on the free tier. Everything else is Premium-locked.
- * English (US) is the default; English (UK) and Tagalog / Taglish are free
- * bonus languages.
- */
-val freeLanguages: Set<AppLanguage> = setOf(
+/** Universally free languages — available in every region, forever. */
+val universallyFreeLanguages: Set<AppLanguage> = setOf(
     AppLanguage.ENGLISH_US,
     AppLanguage.ENGLISH,
-    AppLanguage.TAGALOG,
 )
 
-/** True when this language is available without Premium. */
-val AppLanguage.isFreeLanguage: Boolean get() = this in freeLanguages
+/** ISO 639 language code (lowercase) → supported app language. */
+private val languageCodeMap: Map<String, AppLanguage> = mapOf(
+    "zh" to AppLanguage.CHINESE,
+    "tl" to AppLanguage.TAGALOG,
+    "fil" to AppLanguage.TAGALOG,
+    "ar" to AppLanguage.ARABIC,
+    "bn" to AppLanguage.BENGALI,
+    "nl" to AppLanguage.DUTCH,
+    "fr" to AppLanguage.FRENCH,
+    "de" to AppLanguage.GERMAN,
+    "el" to AppLanguage.GREEK,
+    "hi" to AppLanguage.HINDI,
+    // Java's Locale reports Indonesian with the legacy "in" code.
+    "id" to AppLanguage.INDONESIAN,
+    "in" to AppLanguage.INDONESIAN,
+    "it" to AppLanguage.ITALIAN,
+    "ja" to AppLanguage.JAPANESE,
+    "ko" to AppLanguage.KOREAN,
+    "ms" to AppLanguage.MALAY,
+    "no" to AppLanguage.NORWEGIAN,
+    "nb" to AppLanguage.NORWEGIAN,
+    "nn" to AppLanguage.NORWEGIAN,
+    "pl" to AppLanguage.POLISH,
+    "pt" to AppLanguage.PORTUGUESE,
+    "ru" to AppLanguage.RUSSIAN,
+    "es" to AppLanguage.SPANISH,
+    "sv" to AppLanguage.SWEDISH,
+    "th" to AppLanguage.THAI,
+    "tr" to AppLanguage.TURKISH,
+    "uk" to AppLanguage.UKRAINIAN,
+    "ur" to AppLanguage.URDU,
+    "vi" to AppLanguage.VIETNAMESE,
+)
 
 /**
- * Picker ordering: the free languages pinned first (US default, then UK, then
- * Tagalog / Taglish), everything else alphabetical A-Z by English name.
+ * Country fallback for devices running an English system locale inside a
+ * strong local-language market (e.g. en-PH → Tagalog, en-CN → Chinese), so
+ * the regional free unlock still lands where it should.
  */
-val languagePickerOrder: List<AppLanguage> =
-    listOf(AppLanguage.ENGLISH_US, AppLanguage.ENGLISH, AppLanguage.TAGALOG) +
-        AppLanguage.entries
-            .filter { it !in freeLanguages }
-            .sortedBy { it.englishName }
+private val countryFallbackMap: Map<String, AppLanguage> = mapOf(
+    "PH" to AppLanguage.TAGALOG,
+    "CN" to AppLanguage.CHINESE,
+    "SG" to AppLanguage.CHINESE,
+    "TW" to AppLanguage.CHINESE,
+    "HK" to AppLanguage.CHINESE,
+    "MO" to AppLanguage.CHINESE,
+    "IN" to AppLanguage.HINDI,
+    "PK" to AppLanguage.URDU,
+    "BD" to AppLanguage.BENGALI,
+    "ID" to AppLanguage.INDONESIAN,
+    "MY" to AppLanguage.MALAY,
+    "TH" to AppLanguage.THAI,
+    "VN" to AppLanguage.VIETNAMESE,
+    "JP" to AppLanguage.JAPANESE,
+    "KR" to AppLanguage.KOREAN,
+)
+
+/**
+ * Resolves the ONE regional language a device unlocks for free, from its
+ * locale. Returns null for English locales in English-speaking regions —
+ * those devices simply keep the universal English tier.
+ */
+fun regionalLanguageFor(locale: Locale): AppLanguage? {
+    val byLanguage = languageCodeMap[locale.language.lowercase(Locale.ROOT)]
+    if (byLanguage != null) return byLanguage
+    return countryFallbackMap[locale.country.uppercase(Locale.ROOT)]
+}
+
+/** Languages available without Premium under the given settings. */
+fun AppSettings.unlockedFreeLanguages(): Set<AppLanguage> =
+    freeRegionalLanguage?.let { universallyFreeLanguages + it } ?: universallyFreeLanguages
+
+/** True when [language] is usable without Premium under these settings. */
+fun AppSettings.isLanguageUnlocked(language: AppLanguage): Boolean =
+    isPremium || language in unlockedFreeLanguages()
+
+/**
+ * Picker ordering: free languages pinned first (English US default, then UK,
+ * then the regional unlock), everything else alphabetical A-Z by English name.
+ */
+fun languagePickerOrder(regional: AppLanguage?): List<AppLanguage> {
+    val pinned = buildList {
+        add(AppLanguage.ENGLISH_US)
+        add(AppLanguage.ENGLISH)
+        if (regional != null && regional !in universallyFreeLanguages) add(regional)
+    }
+    return pinned + AppLanguage.entries
+        .filter { it !in pinned }
+        .sortedBy { it.englishName }
+}

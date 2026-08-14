@@ -57,7 +57,7 @@ import androidx.core.net.toUri
  * real AppGallery app id (looks like "C123456789") from AppGallery Connect.
  */
 object AppGalleryLink {
-    private const val PACKAGE_NAME = "com.rork.mindsetframestracker"
+    private const val PACKAGE_NAME = "com.mindsetframes.habittracker"
 
     /** AppGallery app id, e.g. "C123456789". Blank until the app is published. */
     private const val APP_GALLERY_APP_ID = ""
@@ -158,7 +158,7 @@ fun PremiumSheet(onDismiss: () -> Unit) {
                 PremiumBenefitRow(
                     icon = Icons.Outlined.Translate,
                     title = "All 26 languages",
-                    description = "Unlock 23 more world languages beyond the free English (US & UK) and Tagalog / Taglish.",
+                    description = "Unlock every world language beyond your two free ones — English (US & UK) plus your region's language.",
                 )
                 PremiumBenefitRow(
                     icon = Icons.Filled.CheckCircle,

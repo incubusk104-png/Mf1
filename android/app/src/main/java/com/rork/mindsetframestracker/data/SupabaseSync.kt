@@ -261,6 +261,48 @@ class SupabaseSync(context: Context) {
         }
     }
 
+    /**
+     * Completes the email-confirmation web-bridge: the site forwards the
+     * verified Supabase tokens via deep link, and the app exchanges the
+     * one-time refresh token for a fresh session. Supabase rotates refresh
+     * tokens server-side, so a replayed link can never mint a second
+     * session. Returns null on success or a user-facing error message.
+     */
+    suspend fun signInWithRecoveredToken(refreshToken: String): String? {
+        if (!isConfigured) return "Cloud sync is not configured"
+        if (refreshToken.isBlank()) return "This link is missing its credential. Sign in manually."
+        return try {
+            val response = client.post("$baseUrl/auth/v1/token?grant_type=refresh_token") {
+                header("apikey", anonKey)
+                contentType(ContentType.Application.Json)
+                setBody(RefreshBody(refreshToken))
+            }
+            if (!response.status.isSuccess()) {
+                Log.w(TAG, "Bridge token exchange failed: ${response.status}")
+                "This link has expired or was already used. Sign in to request a new one."
+            } else {
+                saveSession(response.body<AuthSession>(), provider = "email")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Bridge sign-in failed: ${e.message}")
+            "Couldn't reach the server. Check your connection and try again."
+        }
+    }
+
+    /**
+     * One-shot guard for auth deep links: records the link signature and
+     * returns true only the first time it is seen. Re-delivered intents
+     * (task re-parenting, history relaunch) are silently ignored, so a
+     * link can never trigger a second sign-in attempt or a UI loop.
+     */
+    fun consumeAuthLink(signature: String): Boolean {
+        if (signature.isBlank()) return false
+        val previous = prefs.getString(KEY_CONSUMED_AUTH_LINK, null)
+        if (previous == signature) return false
+        prefs.edit().putString(KEY_CONSUMED_AUTH_LINK, signature).apply()
+        return true
+    }
+
     /** Sends a password-recovery email. Returns null on success. */
     suspend fun sendPasswordReset(email: String): String? {
         if (!isConfigured) return "Cloud sync is not configured"
@@ -536,6 +578,7 @@ class SupabaseSync(context: Context) {
         private const val KEY_PENDING_PUSH = "pending_push"
         private const val KEY_PROVIDER = "auth_provider"
         private const val KEY_LAST_SYNC = "last_sync_at_ms"
+        private const val KEY_CONSUMED_AUTH_LINK = "consumed_auth_link"
         private const val TAG = "SupabaseSync"
         private const val PULL_ERROR = "Couldn't restore your data. Check your connection and try again."
     }

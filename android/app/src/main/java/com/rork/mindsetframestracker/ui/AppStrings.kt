@@ -234,6 +234,7 @@ class AppStrings(private val table: Map<String, String>) {
     // Settings — Language
     val settingsLanguage: String get() = s("settingsLanguage")
     val settingsLanguageDesc: String get() = s("settingsLanguageDesc")
+    val settingsLanguageRegionalFree: String get() = s("settingsLanguageRegionalFree")
     val settingsEnglish: String get() = s("settingsEnglish")
     val settingsEnglishDefault: String get() = s("settingsEnglishDefault")
     val settingsTagalog: String get() = s("settingsTagalog")

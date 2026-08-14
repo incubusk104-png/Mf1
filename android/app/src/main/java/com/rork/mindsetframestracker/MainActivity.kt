@@ -3,6 +3,7 @@ package com.rork.mindsetframestracker
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -59,6 +60,10 @@ class MainActivity : ComponentActivity() {
         // when the config file isn't bundled yet.
         runCatching { HuaweiServicesConfig.initialize(this) }
 
+        // Consume an auth deep link delivered with the launch intent (cold
+        // start from the email web-bridge).
+        runCatching { handleAuthIntent(intent) }
+
         try {
             enableEdgeToEdge()
         } catch (e: Exception) {
@@ -98,6 +103,33 @@ class MainActivity : ComponentActivity() {
         } catch (e: Throwable) {
             Log.e("MainActivity", "Fallback UI failed: ${e.message}", e)
         }
+    }
+
+    /**
+     * Warm-start leg of the auth web-bridge: launchMode="singleTask" routes
+     * a tapped email link into the existing instance through onNewIntent —
+     * no duplicate activities, no login loops.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        runCatching { handleAuthIntent(intent) }
+    }
+
+    /**
+     * Forwards an auth-callback deep link to the ViewModel exactly once.
+     * The intent's data is cleared afterwards so system re-deliveries
+     * (recents relaunch, task re-parenting) can never replay the one-time
+     * link; the ViewModel adds a persisted signature guard on top.
+     */
+    private fun handleAuthIntent(intent: Intent?) {
+        val uri: Uri = intent?.data ?: return
+        val isAuthCallback = uri.host == "auth-callback" &&
+            (uri.scheme == "com.mindsetframes.habittracker" ||
+                uri.scheme == "com.rork.mindsetframestracker")
+        if (!isAuthCallback) return
+        appViewModel.handleAuthDeepLink(uri)
+        intent.data = null
     }
 
     /**

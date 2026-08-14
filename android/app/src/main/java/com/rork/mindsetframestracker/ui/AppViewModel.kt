@@ -3,6 +3,7 @@ package com.rork.mindsetframestracker.ui
 import android.app.Application
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.util.Log
 import android.util.Patterns
 import androidx.core.content.ContextCompat
@@ -19,6 +20,8 @@ import com.rork.mindsetframestracker.data.MAX_FREE_HABITS
 import com.rork.mindsetframestracker.data.MindsetRepository
 import com.rork.mindsetframestracker.data.MoodMode
 import com.rork.mindsetframestracker.data.hasFeatureAccess
+import com.rork.mindsetframestracker.data.regionalLanguageFor
+import com.rork.mindsetframestracker.data.universallyFreeLanguages
 import com.rork.mindsetframestracker.data.SupabaseSync
 import com.rork.mindsetframestracker.data.ThemeMode
 import com.rork.mindsetframestracker.notifications.CheckInNotifier
@@ -32,6 +35,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
+import java.security.MessageDigest
+import java.util.Locale
 import java.util.UUID
 
 /** Max habit name length — mirrors the Supabase column constraint (schema check <= 60). */
@@ -93,6 +99,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             LocalizationManager.loadStringJson(_state.value.settings.language.code)
         }.onFailure {
             if (BuildConfig.DEBUG) Log.e("AppViewModel", "Localization init failed: ${it.message}", it)
+        }
+        runCatching { ensureRegionalLanguage() }.onFailure {
+            if (BuildConfig.DEBUG) Log.e("AppViewModel", "Regional language resolve failed: ${it.message}", it)
         }
         runCatching { retryPendingSync() }.onFailure {
             if (BuildConfig.DEBUG) Log.e("AppViewModel", "Retry pending sync failed: ${it.message}", it)
@@ -286,6 +295,98 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Surfaces a Huawei Account Kit failure inside the auth sheet. */
     fun onHuaweiSignInFailed(message: String) {
         rejectAuth(message)
+    }
+
+    /**
+     * Dual-free language model: resolves the ONE regional language this
+     * install unlocks for free. Runs once — the grant is persisted (and
+     * synced) the first time a regional language can be determined. An
+     * already-selected non-English language is grandfathered in first so an
+     * update can never lock anyone out of their active language.
+     */
+    private fun ensureRegionalLanguage() {
+        val settings = _state.value.settings
+        if (settings.freeRegionalLanguage != null) return
+        val selectedNonEnglish = settings.language.takeIf { it !in universallyFreeLanguages }
+        val regional = selectedNonEnglish
+            ?: regionalLanguageFor(Locale.getDefault())
+            ?: return
+        update { it.copy(settings = it.settings.copy(freeRegionalLanguage = regional)) }
+        queueSync()
+    }
+
+    /**
+     * Consumes an auth-callback deep link from the mindsetframes.online
+     * web-bridge (email confirmation, magic link, recovery). Each link is
+     * processed at most once — a persisted signature guard drops replays —
+     * and the forwarded one-time refresh token is exchanged server-side,
+     * which rotates it immediately.
+     */
+    fun handleAuthDeepLink(uri: Uri) {
+        val signature = runCatching {
+            MessageDigest.getInstance("SHA-256")
+                .digest(uri.toString().toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        }.getOrNull() ?: return
+        if (!supabaseSync.consumeAuthLink(signature)) return
+
+        val params = authLinkParams(uri)
+        val errorCode = params["error_code"] ?: params["error"]
+        if (errorCode != null) {
+            val friendly = if (errorCode == "otp_expired" || errorCode == "access_denied") {
+                "That email link has expired — request a fresh one from the sign-in screen."
+            } else {
+                "That email link couldn't be verified. Request a new one and try again."
+            }
+            _syncState.value = _syncState.value.copy(message = friendly, isError = true)
+            return
+        }
+
+        val refreshToken = params["refresh_token"]
+        if (!refreshToken.isNullOrBlank()) {
+            if (_syncState.value.busy) return
+            _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
+            viewModelScope.launch {
+                val error = supabaseSync.signInWithRecoveredToken(refreshToken)
+                if (error != null) {
+                    _syncState.value = _syncState.value.copy(busy = false, message = error, isError = true)
+                } else {
+                    onSignedIn("Email verified — you're signed in!")
+                }
+            }
+            return
+        }
+
+        // Verified link without tokens (older template or manual hand-off):
+        // confirm success and route the user to the sign-in sheet.
+        if (params["type"] != null && params["type"] != "manual") {
+            _syncState.value = _syncState.value.copy(
+                message = "Email verified! Sign in with your password to finish.",
+                isError = false,
+            )
+            if (!supabaseSync.isSignedIn) openAuthPrompt()
+        }
+    }
+
+    /** Merges query + fragment parameters of an auth deep link (fragment wins). */
+    private fun authLinkParams(uri: Uri): Map<String, String> {
+        val params = mutableMapOf<String, String>()
+        runCatching {
+            uri.queryParameterNames.forEach { name ->
+                uri.getQueryParameter(name)?.let { params[name] = it }
+            }
+        }
+        uri.fragment.orEmpty().split('&').forEach { pair ->
+            val separator = pair.indexOf('=')
+            if (separator > 0) {
+                val key = pair.substring(0, separator)
+                val value = runCatching {
+                    URLDecoder.decode(pair.substring(separator + 1), "UTF-8")
+                }.getOrNull()
+                if (value != null) params[key] = value
+            }
+        }
+        return params
     }
 
     /** Shared post-auth path: pull the cloud snapshot, then queue a backup of local data. */
@@ -706,6 +807,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLanguage(language: com.rork.mindsetframestracker.data.AppLanguage) {
         update { it.copy(settings = it.settings.copy(language = language)) }
+        // Language choice is part of the synced settings payload — back it up.
+        queueSync()
     }
 
     fun setAvatar(avatar: com.rork.mindsetframestracker.data.AvatarConfig) {

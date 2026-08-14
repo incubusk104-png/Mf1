@@ -34,14 +34,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Return leg of the browser-based email sign-in: Supabase
-                 redirects to com.rork.mindsetframestracker://auth-callback
-                 with the auth code. singleTask reuses the running activity
-                 so the app resumes exactly where the user left off. -->
+            <!-- Return leg of the email auth web-bridge: mindsetframes.online
+                 forwards Supabase confirmation results to
+                 com.mindsetframes.habittracker://auth-callback. singleTask
+                 reuses the running activity (no duplicate instances or login
+                 loops); MainActivity consumes each link exactly once. The
+                 legacy scheme stays registered for older links. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.mindsetframes.habittracker"
+                    android:host="auth-callback" />
                 <data
                     android:scheme="com.rork.mindsetframestracker"
                     android:host="auth-callback" />
