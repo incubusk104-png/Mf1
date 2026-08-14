@@ -99,11 +99,6 @@ private fun tabDirection(from: String?, to: String?): Int {
 }
 
 /**
- * Navigation shell. The bottom bar position and destinations are identical in
- * every mood mode — only theme accents change. Tab switches slide in the
- * direction of travel; other routes cross-fade with a soft scale.
- */
-/**
  * Tiny status cluster pinned to the corner of the bottom navigation bar.
  * Cloud icon: grey cloud-off when offline, tinted cloud when online.
  * Low Power: an amber battery-alert badge appears when the battery is
@@ -187,6 +182,8 @@ fun AppNavigation(viewModel: AppViewModel) {
             },
             onSignIn = viewModel::signIn,
             onSignUp = viewModel::signUp,
+            onForgotPassword = viewModel::sendPasswordReset,
+            onConsumeSuggestSignIn = viewModel::consumeSuggestSignIn,
             onDismiss = viewModel::dismissAuthPrompt,
         )
     }
@@ -362,8 +359,6 @@ fun AppNavigation(viewModel: AppViewModel) {
                     )
                 }
                 composable("onboarding") {
-                    // No account UI here — the save-your-progress popup takes over
-                    // automatically on the Today screen right after onboarding.
                     OnboardingScreen(
                         onFinish = { habits, mood ->
                             viewModel.completeOnboarding(habits, mood)
@@ -391,10 +386,6 @@ fun AppNavigation(viewModel: AppViewModel) {
                 composable("settings") { SettingsScreen(viewModel = viewModel) }
             }
 
-            // Global sync status: spinner while any backup runs, a persistent
-            // failure alert with Retry when one fails. Settings renders its
-            // own inline banners, and the sign-in sheet shows its own status,
-            // so both suppress this one.
             SyncStatusBanner(
                 syncState = syncState,
                 visible = showBottomBar && currentRoute != "settings" && !showAuthPrompt,
