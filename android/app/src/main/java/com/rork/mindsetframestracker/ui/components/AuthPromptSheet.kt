@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rork.mindsetframestracker.ui.MIN_PASSWORD_LENGTH
@@ -80,6 +80,8 @@ fun AuthPromptSheet(
     onHuaweiSignIn: () -> Unit,
     onSignIn: (email: String, password: String) -> Unit,
     onSignUp: (email: String, password: String) -> Unit,
+    onForgotPassword: (email: String) -> Unit,
+    onConsumeSuggestSignIn: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -116,6 +118,8 @@ fun AuthPromptSheet(
                     onHuaweiSignIn = onHuaweiSignIn,
                     onSignIn = onSignIn,
                     onSignUp = onSignUp,
+                    onForgotPassword = onForgotPassword,
+                    onConsumeSuggestSignIn = onConsumeSuggestSignIn,
                     onDismiss = onDismiss,
                 )
             }
@@ -171,6 +175,8 @@ private fun SignedOutContent(
     onHuaweiSignIn: () -> Unit,
     onSignIn: (email: String, password: String) -> Unit,
     onSignUp: (email: String, password: String) -> Unit,
+    onForgotPassword: (email: String) -> Unit,
+    onConsumeSuggestSignIn: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var emailMode by rememberSaveable { mutableStateOf(false) }
@@ -178,9 +184,32 @@ private fun SignedOutContent(
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPolicy by rememberSaveable { mutableStateOf(false) }
+    var showForgotPassword by rememberSaveable { mutableStateOf(false) }
 
     if (showPolicy) {
         PrivacyPolicyDialog(onDismiss = { showPolicy = false })
+    }
+
+    if (showForgotPassword) {
+        ForgotPasswordDialog(
+            initialEmail = email,
+            busy = syncState.busy,
+            onSend = { resetEmail ->
+                onForgotPassword(resetEmail)
+                showForgotPassword = false
+            },
+            onDismiss = { showForgotPassword = false },
+        )
+    }
+
+    // Backend flags "email already registered" on sign-up — auto-drop the
+    // user into Sign In mode so they aren't stuck resubmitting the same form.
+    LaunchedEffect(syncState.suggestSignIn) {
+        if (syncState.suggestSignIn) {
+            emailMode = true
+            isSignUp = false
+            onConsumeSuggestSignIn()
+        }
     }
 
     Box(
@@ -206,9 +235,9 @@ private fun SignedOutContent(
     )
     Text(
         text = "Your habits, check-ins, and moods live only on this phone right now. " +
-            "Connect an account and they're backed up automatically — and if " +
-            "you've used Mindset Frames before, signing in brings your progress " +
-            "right back.",
+                "Connect an account and they're backed up automatically — and if " +
+                "you've used Mindset Frames before, signing in brings your progress " +
+                "right back.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
@@ -236,6 +265,7 @@ private fun SignedOutContent(
         busy = syncState.busy && !emailMode,
         modifier = Modifier.fillMaxWidth(),
     )
+
     OrDivider(modifier = Modifier.padding(vertical = 14.dp))
 
     if (!emailMode) {
@@ -266,22 +296,37 @@ private fun SignedOutContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+
+        // Eye-icon show/hide toggle lives inside PasswordField.
+        PasswordField(
             value = password,
             onValueChange = { password = it },
-            label = {
-                Text(if (isSignUp) "Password (min $MIN_PASSWORD_LENGTH characters)" else "Password")
-            },
-            singleLine = true,
+            label = if (isSignUp) "Password (min $MIN_PASSWORD_LENGTH characters)" else "Password",
             enabled = !syncState.busy,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
         )
+
+        if (!isSignUp) {
+            TextButton(
+                onClick = { showForgotPassword = true },
+                enabled = !syncState.busy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+            ) {
+                Text(
+                    text = "Forgot password?",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+
         Button(
-            onClick = { if (isSignUp) onSignUp(email, password) else onSignIn(email, password) },
+            onClick = {
+                if (isSignUp) onSignUp(email, password) else onSignIn(email, password)
+            },
             enabled = !syncState.busy && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -294,13 +339,13 @@ private fun SignedOutContent(
                 Text(if (isSignUp) "Create free account" else "Sign in")
             }
         }
+
         TextButton(
             onClick = { isSignUp = !isSignUp },
             enabled = !syncState.busy,
         ) {
             Text(
-                text = if (isSignUp) "Already have an account? Sign in"
-                else "New here? Create an account",
+                text = if (isSignUp) "Already have an account? Sign in" else "New here? Create an account",
             )
         }
     }
@@ -326,11 +371,75 @@ private fun SignedOutContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+
     Text(
         text = "Free · No spam · Sign out anytime",
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         textAlign = TextAlign.Center,
+    )
+}
+
+/**
+ * "Forgot Password?" dialog — collects an email and fires the reset-email
+ * request. Always shows the same neutral confirmation regardless of whether
+ * the address is registered, so the flow can't be used to probe which
+ * emails have accounts.
+ */
+@Composable
+private fun ForgotPasswordDialog(
+    initialEmail: String,
+    busy: Boolean,
+    onSend: (email: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var email by rememberSaveable { mutableStateOf(initialEmail) }
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text("Reset your password") },
+        text = {
+            Column {
+                Text(
+                    text = "Enter your account email — we'll send a link to reset your password.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    enabled = !busy,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSend(email) },
+                enabled = !busy && email.isNotBlank(),
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Send reset link")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !busy,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) {
+                Text("Cancel")
+            }
+        },
     )
 }
 
