@@ -262,8 +262,12 @@ class SupabaseSync(context: Context) {
             if (!response.status.isSuccess()) return authError(response)
             
             val session = response.body<AuthSession>()
-            val identities = session.user?.identities
-            if (identities != null && identities.isEmpty()) {
+            val user = session.user
+            val identities = user?.identities
+
+            val isDuplicate = user == null || user.id.isBlank() || (identities != null && identities.isEmpty())
+
+            if (isDuplicate) {
                 lastSignUpIdentitiesWasEmpty = true
                 return "This email is already registered. Please log in instead."
             }
