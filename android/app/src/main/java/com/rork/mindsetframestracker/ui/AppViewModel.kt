@@ -145,26 +145,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _newCompanionUnlocks.value = emptyList()
     }
 
-    /**
-     * Aligns the one-shot companion alarms with persisted state at launch.
-     * Safe to call repeatedly — stale alarms are cancelled/replaced.
-     */
     private val syncCompanionReminders: () -> Unit = {}
 
-    /**
-     * Offline resilience: if a previous session left local changes that never
-     * reached the cloud, retry the backup automatically on launch.
-     */
     private fun retryPendingSync() {
         if (supabaseSync.isConfigured && supabaseSync.isSignedIn && supabaseSync.hasPendingPush) {
             queueSync()
         }
     }
 
-    /**
-     * Keeps the WorkManager daily backup aligned with the session: scheduled
-     * while signed in, cancelled when signed out. Safe to call repeatedly.
-     */
     private fun alignDailyBackup() {
         if (supabaseSync.isConfigured && supabaseSync.isSignedIn) {
             CloudBackupWorker.schedule(getApplication())
@@ -269,7 +257,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _syncState.value = _syncState.value.copy(busy = false, message = message, isError = true)
     }
 
-    /** Signs in, then pulls the user's cloud snapshot and merges it locally. */
     fun signIn(email: String, password: String) {
         if (_syncState.value.busy) return
         validateCredentials(email, password, forSignUp = false)?.let { rejectAuth(it); return }
