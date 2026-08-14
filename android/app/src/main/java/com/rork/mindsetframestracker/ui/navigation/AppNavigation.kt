@@ -56,6 +56,7 @@ import androidx.navigation.compose.rememberNavController
 import com.rork.mindsetframestracker.ui.AppViewModel
 import com.rork.mindsetframestracker.ui.appStrings
 import com.rork.mindsetframestracker.ui.components.AuthPromptSheet
+import com.rork.mindsetframestracker.ui.components.SetNewPasswordSheet
 import com.rork.mindsetframestracker.ui.components.SyncStatusBanner
 import com.rork.mindsetframestracker.ui.components.moodBackdrop
 import com.rork.mindsetframestracker.ui.screens.HabitsScreen
@@ -167,7 +168,13 @@ fun AppNavigation(viewModel: AppViewModel) {
         }
     }
 
-    if (showAuthPrompt) {
+    // High priority intercept: if coming from a password reset link, block app with SetNewPasswordSheet
+    if (syncState.showSetNewPasswordSheet) {
+        SetNewPasswordSheet(
+            syncState = syncState,
+            onUpdatePassword = viewModel::setNewPassword,
+        )
+    } else if (showAuthPrompt) {
         AuthPromptSheet(
             syncState = syncState,
             privacyConsentAccepted = data.settings.privacyConsentAccepted,
@@ -192,7 +199,7 @@ fun AppNavigation(viewModel: AppViewModel) {
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             AnimatedVisibility(
-                visible = showBottomBar,
+                visible = showBottomBar && !syncState.showSetNewPasswordSheet,
                 enter = if (reducedMotion) EnterTransition.None
                 else slideInVertically(
                     animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
@@ -388,7 +395,7 @@ fun AppNavigation(viewModel: AppViewModel) {
 
             SyncStatusBanner(
                 syncState = syncState,
-                visible = showBottomBar && currentRoute != "settings" && !showAuthPrompt,
+                visible = showBottomBar && currentRoute != "settings" && !showAuthPrompt && !syncState.showSetNewPasswordSheet,
                 reducedMotion = reducedMotion,
                 onRetry = viewModel::retrySync,
                 onDismiss = viewModel::clearSyncMessage,
