@@ -65,6 +65,8 @@ data class SyncUiState(
     /** One-shot flag: sign-up hit "email already registered" — UI should
      * switch to the Sign In tab, then call [AppViewModel.consumeSuggestSignIn]. */
     val suggestSignIn: Boolean = false,
+    /** True when the user arrived via a password reset link and must set a new password. */
+    val showSetNewPasswordSheet: Boolean = false,
 )
 
 /** Minimum gap between manual syncs, to avoid spamming Supabase with duplicate pushes. */
@@ -212,6 +214,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _showAuthPrompt.value = false
     }
 
+    fun setNewPassword(newPassword: String) {
+        if (_syncState.value.busy) return
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            rejectAuth("Use at least $MIN_PASSWORD_LENGTH characters for your new password")
+            return
+        }
+        _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
+        viewModelScope.launch {
+            val error = supabaseSync.updatePassword(newPassword)
+            _syncState.value = if (error != null) {
+                _syncState.value.copy(busy = false, message = error, isError = true)
+            } else {
+                _syncState.value.copy(
+                    busy = false,
+                    showSetNewPasswordSheet = false,
+                    message = "Password updated successfully!",
+                    isError = false,
+                )
+            }
+        }
+    }
+
+    fun dismissSetNewPasswordSheet() {
+        _syncState.value = _syncState.value.copy(showSetNewPasswordSheet = false)
+    }
+
     // ── Privacy consent ────────────────────────────────────────
 
     fun acceptPrivacyConsent() {
@@ -326,6 +354,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val refreshToken = params["refresh_token"]
+        val isRecovery = params["type"] == "recovery"
+
         if (!refreshToken.isNullOrBlank()) {
             if (_syncState.value.busy) return
             _syncState.value = _syncState.value.copy(busy = true, message = null, isError = false)
@@ -334,7 +364,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (error != null) {
                     _syncState.value = _syncState.value.copy(busy = false, message = error, isError = true)
                 } else {
-                    onSignedIn("Email verified — you're signed in!")
+                    if (isRecovery) {
+                        _syncState.value = _syncState.value.copy(
+                            busy = false,
+                            showSetNewPasswordSheet = true,
+                            message = "Choose a new password for your account.",
+                            isError = false,
+                        )
+                    } else {
+                        onSignedIn("Email verified — you're signed in!")
+                    }
                 }
             }
             return
@@ -369,7 +408,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return params
     }
 
-    private suspend fun onSignedIn(successMessage: String) {
+    private suspend fun onSignedIn(successMessage: String, showSavePrompt: Boolean = true) {
         restoreFromCloud()
         _syncState.value = _syncState.value.copy(
             busy = false,
@@ -378,7 +417,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             message = successMessage,
             isError = false,
         )
-        if (_state.value.settings.onboardingDone) {
+        if (showSavePrompt && _state.value.settings.onboardingDone) {
             _showAuthPrompt.value = true
         }
         queueSync()
