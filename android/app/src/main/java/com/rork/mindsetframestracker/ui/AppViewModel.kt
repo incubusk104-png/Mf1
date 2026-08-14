@@ -64,6 +64,9 @@ data class SyncUiState(
     val isError: Boolean = false,
     /** Seconds remaining before another manual sync is allowed (0 = ready). */
     val cooldownSecondsLeft: Int = 0,
+    /** One-shot flag: sign-up hit "email already registered" — UI should
+     * switch to the Sign In tab, then call [AppViewModel.consumeSuggestSignIn]. */
+    val suggestSignIn: Boolean = false,
 )
 
 /** Minimum gap between manual syncs, to avoid spamming Supabase with duplicate pushes. */
