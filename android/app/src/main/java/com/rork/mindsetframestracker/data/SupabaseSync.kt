@@ -13,6 +13,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -162,6 +163,9 @@ class SupabaseSync(context: Context) {
     @Serializable
     private data class RefreshBody(val refresh_token: String)
 
+    @Serializable
+    private data class UpdatePasswordBody(val password: String)
+
     /** Signs in with email/password. Returns null on success or an error message. */
     suspend fun signIn(email: String, password: String): String? {
         if (!isConfigured) return "Cloud sync is not configured"
@@ -208,7 +212,6 @@ class SupabaseSync(context: Context) {
                 setBody(HuaweiExchangeBody(idToken))
             }
             if (!response.status.isSuccess()) {
-                // Never log the token itself — status code only.
                 Log.w(TAG, "Huawei exchange failed: ${response.status}")
                 return when (response.status) {
                     HttpStatusCode.Unauthorized ->
@@ -219,7 +222,6 @@ class SupabaseSync(context: Context) {
             }
             val session = response.body<AuthSession>()
             saveSession(session, provider = "huawei")?.let { return it }
-            // Show the human Huawei address (or name) instead of the internal one.
             prefs.edit()
                 .putString(
                     KEY_EMAIL,
@@ -250,7 +252,6 @@ class SupabaseSync(context: Context) {
             if (!response.status.isSuccess()) return authError(response)
             val session = response.body<AuthSession>()
             if (session.access_token.isNullOrBlank()) {
-                // Email confirmation enabled in the Supabase project.
                 "Account created — check $email to confirm, then sign in."
             } else {
                 saveSession(session, provider = "email")
@@ -321,6 +322,35 @@ class SupabaseSync(context: Context) {
     }
 
     /**
+     * Updates the signed-in user's password via Supabase GoTrue. The caller
+     * (ViewModel.changePassword) re-verifies the current password with a
+     * fresh sign-in before calling this. Returns null on success or a
+     * user-facing error message.
+     */
+    suspend fun updatePassword(newPassword: String): String? {
+        if (!isConfigured) return "Cloud sync is not configured"
+        if (accessToken == null) return "You're not signed in."
+        return try {
+            var response = updatePasswordRequest(newPassword)
+            if (response.status == HttpStatusCode.Unauthorized && tryRefreshSession()) {
+                response = updatePasswordRequest(newPassword)
+            }
+            if (response.status.isSuccess()) null else authError(response)
+        } catch (e: Exception) {
+            Log.w(TAG, "Update password failed: ${e.message}")
+            "Couldn't reach the server. Check your connection and try again."
+        }
+    }
+
+    private suspend fun updatePasswordRequest(newPassword: String): HttpResponse =
+        client.put("$baseUrl/auth/v1/user") {
+            header("apikey", anonKey)
+            header(HttpHeaders.Authorization, "Bearer ${accessToken ?: anonKey}")
+            contentType(ContentType.Application.Json)
+            setBody(UpdatePasswordBody(newPassword))
+        }
+
+    /**
      * Permanently deletes the signed-in user's account server-side via the
      * delete_user RPC: every owned row plus the
      * auth user itself are erased in one transaction, then the local session
@@ -384,9 +414,6 @@ class SupabaseSync(context: Context) {
             .putString(KEY_ACCESS_TOKEN, TokenCipher.seal(token))
             .putString(KEY_REFRESH_TOKEN, session.refresh_token?.let(TokenCipher::seal))
             .putString(KEY_USER_ID, session.user?.id)
-        // Token refreshes pass null and keep the original provider + shown
-        // email (Huawei sessions display the human address, not the internal
-        // identity address).
         if (provider != null) {
             editor.putString(KEY_PROVIDER, provider)
             editor.putString(KEY_EMAIL, session.user?.email)
@@ -429,9 +456,6 @@ class SupabaseSync(context: Context) {
 
     // ── Data sync ────────────────────────────────────────────────────
 
-    // Row shapes mirror the live Supabase schema exactly — PostgREST rejects
-    // unknown columns, so keep these in sync with the tables.
-
     @Serializable
     private data class HabitRow(
         val id: String,
@@ -468,7 +492,6 @@ class SupabaseSync(context: Context) {
      */
     suspend fun pushSnapshot(data: AppData): String? {
         if (!isConfigured) return "Supabase is not configured"
-        // Strict RLS: only authenticated users can write, and only their own rows.
         val uid = sessionUserId ?: return "Sign in first to back up your data"
         if (accessToken == null) return "Sign in first to back up your data"
         return try {
