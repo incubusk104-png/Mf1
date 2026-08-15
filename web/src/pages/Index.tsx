@@ -5,6 +5,7 @@ import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { Hero } from "@/components/marketing/Hero";
 import { LanguagesSection } from "@/components/marketing/LanguagesSection";
 import { Navbar } from "@/components/marketing/Navbar";
+import { PricingSection } from "@/components/marketing/PricingSection";
 import { ScreensShowcase } from "@/components/marketing/ScreensShowcase";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { readAuthResult, type BridgeResult } from "@/lib/authBridge";
@@ -33,6 +34,7 @@ export default function Index() {
         <FeatureGrid />
         <ScreensShowcase />
         <LanguagesSection />
+        <PricingSection />
       </main>
       <SiteFooter />
     </div>
