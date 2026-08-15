@@ -7,14 +7,6 @@ plugins {
 
 // ---------------------------------------------------------------------------
 // Build-time configuration (Supabase + Huawei Account Kit).
-//
-// Values are resolved from every channel available, in order:
-//   1. process environment (private name, then public EXPO_PUBLIC_* name)
-//   2. the Rork-managed Config.kt constants in the app source
-//   3. committed gradle.properties defaults (see gradle.properties)
-// All values are client-public by design (the Supabase anon key is a public
-// client key guarded by RLS). Real secrets must NEVER be added to any channel
-// here. When a value is blank, the related feature (cloud sync) simply hides.
 // ---------------------------------------------------------------------------
 val rorkConfigFile = file("src/main/java/com/rork/mindsetframes/Config.kt")
 
@@ -38,12 +30,6 @@ fun resolveRorkValue(privateName: String, publicName: String, propertyName: Stri
 
 // ---------------------------------------------------------------------------
 // Huawei agconnect-services.json support.
-// Download the file from AppGallery Connect (Project settings > General
-// information > App information) and drop it at android/app/agconnect-services.json
-// — the standard Huawei location. The build bundles it into APK assets, where
-// the HMS SDK and HuaweiServicesConfig read it at runtime. No agcp Gradle
-// plugin is needed, so builds keep working while the file is absent — Huawei
-// sign-in simply reports "not configured" until it's added.
 // ---------------------------------------------------------------------------
 val agconnectGeneratedAssets = layout.buildDirectory.dir("generated/agconnect/assets")
 val copyAgconnectServices = tasks.register<Copy>("copyAgconnectServices") {
@@ -56,10 +42,6 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        // MUST match the package name registered in AppGallery Connect
-        // (agconnect-services.json client.package_name) — HUAWEI ID sign-in
-        // and AppGallery upload both reject a mismatch. The Kotlin namespace
-        // stays com.rork.mindsetframestracker; only the shipped id differs.
         applicationId = "com.mindsetframes.habittracker"
         minSdk = 24
         targetSdk = 36
@@ -78,11 +60,11 @@ android {
     }
 
     signingConfigs {
-        release {
-            storeFile file("release.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 
@@ -111,7 +93,6 @@ android {
 
     sourceSets {
         getByName("main") {
-            // agconnect-services.json is staged here by copyAgconnectServices.
             assets.srcDir(agconnectGeneratedAssets)
         }
     }
@@ -129,9 +110,6 @@ kotlin {
 
 dependencies {
     constraints {
-        // Huawei's hwid → base → stats/device POM chain declares these
-        // dependencies WITHOUT versions (a quirk of the HMS repo), which
-        // breaks Gradle resolution. Pin the published releases explicitly.
         implementation("com.huawei.hms:network-grs:8.0.1.324")
         implementation("com.huawei.android.hms:security-base:2.0.0.302")
         implementation("com.huawei.android.hms:security-ssl:2.0.0.302")
@@ -158,14 +136,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.koin.androidx.compose)
-    // Browser fallback for Supabase OAuth (email sign-in in a Custom Tab).
     implementation(libs.androidx.browser)
-    // Huawei Account Kit — native HUAWEI ID sign-in (see auth/HuaweiAuthClient.kt).
     implementation(libs.huawei.hwid)
-    // AGConnect core — reads agconnect-services.json so Account Kit initializes
-    // (see auth/HuaweiServicesConfig.kt). No agcp Gradle plugin required.
     implementation(libs.huawei.agconnect.core)
-    // WorkManager — automated daily cloud backup (see data/CloudBackupWorker.kt).
     implementation(libs.androidx.work.runtime.ktx)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.androidx.ui.tooling)
