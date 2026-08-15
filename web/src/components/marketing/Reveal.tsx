@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-import { useInView } from "@/hooks/use-in-view";
+import { useInView } from "../../hooks/use-in-view";
 
 /**
  * Scroll-reveal wrapper. Reuses the existing `animate-fade-up` keyframe
