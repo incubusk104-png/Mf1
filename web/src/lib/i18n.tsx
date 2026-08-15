@@ -6,6 +6,7 @@ export interface Copy {
   navFeatures: string;
   navScreens: string;
   navLanguages: string;
+  navPricing: string;
   navPrivacy: string;
   navDownload: string;
 
@@ -55,6 +56,27 @@ export interface Copy {
   langFreeRegionalBody: string;
   langPremiumNote: string;
 
+  pricingTitle: string;
+  pricingSub: string;
+  pricingFoundingBanner: string;
+  pricingFoundingBadge: string;
+  pricingToggleLabel: string;
+  pricingMonthly: string;
+  pricingYearly: string;
+  pricingFreeTitle: string;
+  pricingFreePrice: string;
+  pricingFreeF1: string;
+  pricingFreeF2: string;
+  pricingFreeF3: string;
+  pricingPremiumTitle: string;
+  pricingLockedForever: string;
+  pricingPremF1: string;
+  pricingPremF2: string;
+  pricingPremF3: string;
+  pricingPremF4: string;
+  pricingCta: string;
+  pricingRegionNote: string;
+
   privacyBandTitle: string;
   privacyBandBody: string;
   privacyBandCta: string;
@@ -95,6 +117,7 @@ const en: Copy = {
   navFeatures: "Features",
   navScreens: "Screens",
   navLanguages: "Languages",
+  navPricing: "Pricing",
   navPrivacy: "Privacy",
   navDownload: "Download",
 
@@ -148,6 +171,29 @@ const en: Copy = {
     "Simplified Chinese in China, Tagalog in the Philippines, German in Germany… the app detects your device locale and unlocks your local language automatically.",
   langPremiumNote: "All other world languages come with Premium.",
 
+  pricingTitle: "Fair pricing, wherever you are",
+  pricingSub: "Free forever for the essentials. Premium unlocks the full experience.",
+  pricingFoundingBanner:
+    "Founding Member pricing — locked in for life, limited to the first {slots} people who upgrade.",
+  pricingFoundingBadge: "Founding price",
+  pricingToggleLabel: "Billing cycle",
+  pricingMonthly: "Monthly",
+  pricingYearly: "Yearly",
+  pricingFreeTitle: "Free",
+  pricingFreePrice: "$0",
+  pricingFreeF1: "Up to 5 habits",
+  pricingFreeF2: "English + your region's language",
+  pricingFreeF3: "Daily mood check-in & grounding toolkit",
+  pricingPremiumTitle: "Premium",
+  pricingLockedForever: "Locked in for as long as you stay subscribed.",
+  pricingPremF1: "Unlimited habits",
+  pricingPremF2: "All 26 languages + 12 accent themes",
+  pricingPremF3: "Advanced weekly insights & PDF reports",
+  pricingPremF4: "Extended prompts & exclusive quote library",
+  pricingCta: "Become a Founding Member",
+  pricingRegionNote:
+    "Final price is shown in your local currency at checkout on Huawei AppGallery.",
+
   privacyBandTitle: "Your data belongs to you.",
   privacyBandBody:
     "Everything lives on your device unless you turn on cloud backup. No ads, no trackers, no selling — and the app server sits outside the Chinese mainland.",
@@ -191,6 +237,7 @@ const zh: Copy = {
   navFeatures: "功能",
   navScreens: "界面",
   navLanguages: "语言",
+  navPricing: "价格",
   navPrivacy: "隐私",
   navDownload: "下载",
 
@@ -241,6 +288,27 @@ const zh: Copy = {
   langFreeRegionalBody:
     "在中国是简体中文，在菲律宾是他加禄语，在德国是德语……应用会识别设备的语言区域，自动免费解锁你的本地语言。",
   langPremiumNote: "其余世界语言随高级版开放。",
+
+  pricingTitle: "无论你在哪里，都有公平的价格",
+  pricingSub: "基础功能永久免费，高级版解锁完整体验。",
+  pricingFoundingBanner: "创始会员价格 — 终身锁定，仅限前 {slots} 位升级用户。",
+  pricingFoundingBadge: "创始价",
+  pricingToggleLabel: "计费周期",
+  pricingMonthly: "月付",
+  pricingYearly: "年付",
+  pricingFreeTitle: "免费版",
+  pricingFreePrice: "¥0",
+  pricingFreeF1: "最多 5 个习惯",
+  pricingFreeF2: "英语 + 你所在地区的语言",
+  pricingFreeF3: "每日心情签到与舒缓工具箱",
+  pricingPremiumTitle: "高级版",
+  pricingLockedForever: "只要保持订阅，价格永久锁定。",
+  pricingPremF1: "无限习惯数量",
+  pricingPremF2: "全部 26 种语言 + 12 款主题",
+  pricingPremF3: "高级每周洞察与 PDF 报告",
+  pricingPremF4: "扩展提示词与专属语录库",
+  pricingCta: "成为创始会员",
+  pricingRegionNote: "最终价格将在华为应用市场结账时以当地货币显示。",
 
   privacyBandTitle: "你的数据属于你。",
   privacyBandBody:
