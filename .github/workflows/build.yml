@@ -16,18 +16,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+
       - name: Find and Build Gradle Project
         run: |
           GRADLE_PATH=$(find . -name gradlew -type f | head -n 1)
-
+          
           if [ -z "$GRADLE_PATH" ]; then
             echo "Error: gradlew file not found in repository."
             exit 1
           fi
-
+          
           GRADLE_DIR=$(dirname "$GRADLE_PATH")
           echo "Found gradlew in: $GRADLE_DIR"
-
+          
           chmod +x "$GRADLE_PATH"
           cd "$GRADLE_DIR"
           ./gradlew assembleRelease
