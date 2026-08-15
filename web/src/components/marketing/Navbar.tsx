@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -6,14 +6,23 @@ import { PrivacySidebar } from "@/components/marketing/PrivacySidebar";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { site } from "@/lib/site";
 
-const NAV_LINKS: ReadonlyArray<{ id: string; key: "navFeatures" | "navScreens" | "navLanguages" }> = [
+const NAV_LINKS: ReadonlyArray<{ id: string; key: "navFeatures" | "navScreens" | "navLanguages" | "navPricing" }> = [
   { id: "features", key: "navFeatures" },
   { id: "screens", key: "navScreens" },
   { id: "languages", key: "navLanguages" },
+  { id: "pricing", key: "navPricing" },
 ];
 
 export function Navbar() {
   const { t, lang, setLang } = useI18n();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const toggle = useCallback(
     (next: Lang) => () => {
@@ -23,7 +32,11 @@ export function Navbar() {
   );
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl transition-shadow duration-300 ${
+        scrolled ? "shadow-lg shadow-black/20" : "shadow-none"
+      }`}
+    >
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
         <a href="#top" className="flex items-center gap-2.5">
           <img
