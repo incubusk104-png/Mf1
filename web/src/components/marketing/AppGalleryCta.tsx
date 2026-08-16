@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import { useI18n } from "@/lib/i18n";
-import { appGalleryUrl, site } from "@/lib/site";
+import { site } from "@/lib/site";
 import { toast } from "@/components/ui/sonner";
 
 /**
@@ -24,12 +24,12 @@ export function AppGalleryCta({ className = "" }: { className?: string }) {
 
   return (
     <a
-      href={site.appGalleryLive ? appGalleryUrl : "#"}
+      href={site.appGalleryLive ? site.appGalleryUrl : "#"}
       onClick={onClick}
       target={site.appGalleryLive ? "_blank" : undefined}
       rel="noopener noreferrer"
       aria-label={t.heroBadgeAlt}
-      className={`group inline-flex flex-col items-center transition-transform hover:scale-[1.03] active:scale-[0.98] ${className}`}
+      className={`group inline-flex items-center transition-transform hover:scale-[1.02] ${className}`}
     >
       <img
         src="/assets/appgallery-badge.png"
@@ -37,11 +37,6 @@ export function AppGalleryCta({ className = "" }: { className?: string }) {
         className="h-14 w-auto rounded-xl shadow-lg shadow-black/40"
         loading="eager"
       />
-      {!site.appGalleryLive && (
-        <span className="mt-1.5 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-          {t.heroComingSoon}
-        </span>
-      )}
     </a>
   );
 }
