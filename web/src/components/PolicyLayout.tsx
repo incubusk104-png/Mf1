@@ -15,6 +15,9 @@ interface PolicyLayoutProps {
   updatedLabel: string;
   backLabel: string;
   sections: PolicySection[];
+  zhTitle?: string;
+  zhUpdatedLabel?: string;
+  zhSections?: PolicySection[];
   children?: ReactNode;
 }
 
@@ -24,6 +27,9 @@ export function PolicyLayout({
   updatedLabel,
   backLabel,
   sections,
+  zhTitle,
+  zhUpdatedLabel,
+  zhSections,
 }: PolicyLayoutProps) {
   return (
     <main className="relative min-h-screen bg-background">
@@ -73,6 +79,46 @@ export function PolicyLayout({
             </section>
           ))}
         </article>
+
+        {zhSections && zhSections.length > 0 && (
+          <>
+            <hr className="mt-16 border-border" />
+            <header className="mt-16 flex items-start gap-4">
+              <img
+                src="/assets/logo.png"
+                alt={`${site.name} logo`}
+                className="h-12 w-12 object-contain"
+              />
+              <div>
+                <h1 className="font-display text-4xl font-semibold tracking-tight">
+                  {zhTitle ?? title}
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">{zhUpdatedLabel ?? updatedLabel}</p>
+              </div>
+            </header>
+            <article className="mt-10 space-y-10">
+              {zhSections.map((section) => (
+                <section key={section.heading}>
+                  <h2 className="font-display text-2xl font-semibold">{section.heading}</h2>
+                  {section.paragraphs.map((paragraph) => (
+                    <p key={paragraph} className="mt-3 leading-relaxed text-muted-foreground">
+                      {paragraph}
+                    </p>
+                  ))}
+                  {section.bullets && (
+                    <ul className="mt-3 list-disc space-y-2 pl-6 text-muted-foreground">
+                      {section.bullets.map((bullet) => (
+                        <li key={bullet} className="leading-relaxed">
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ))}
+            </article>
+          </>
+        )}
 
         <footer className="mt-16 border-t border-border pt-6 text-sm text-muted-foreground">
           © {new Date().getFullYear()} {site.name}
