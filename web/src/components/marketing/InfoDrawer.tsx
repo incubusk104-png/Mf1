@@ -24,7 +24,7 @@ export function InfoDrawer() {
           aria-label="More info"
           className="h-9 w-9 rounded-full"
         >
-          <Menu className="h-4 w-4" aria-hidden />
+          <Menu className="h-4 w-4" aria-hidden="true" />
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="flex flex-col gap-6">
@@ -33,14 +33,17 @@ export function InfoDrawer() {
         </SheetHeader>
 
         <nav className="flex flex-col gap-4 text-sm">
-          <Link to="/privacy" className="text-muted-foreground transition-colors hover:text-foreground">
+          <Link
+            to="/privacy"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
             {t.footerPrivacyEn}
           </Link>
-          
+          <a
             href={`mailto:${site.supportEmail}`}
             className="inline-flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
           >
-            <Mail className="h-3.5 w-3.5" aria-hidden />
+            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
             {t.footerSupport}
           </a>
         </nav>
