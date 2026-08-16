@@ -25,7 +25,7 @@ export function SocialLinks() {
   return (
     <div className="flex items-center gap-3">
       {SOCIALS.map(({ name, href, path }) => (
-        
+        <a
           key={name}
           href={href}
           target="_blank"
@@ -33,7 +33,7 @@ export function SocialLinks() {
           aria-label={name}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
             <path d={path} />
           </svg>
         </a>
