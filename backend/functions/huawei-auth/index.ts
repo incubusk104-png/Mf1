@@ -29,7 +29,7 @@ const TOKENINFO_URL =
 // OAuth 2.0 client ID of the Mindset Frames AppGallery app — a public
 // identifier (agconnect-services.json oauth_client.client_id), NOT a secret.
 // Tokens minted for any other app are rejected even if otherwise valid.
-const EXPECTED_AUDIENCE = "118611057";
+const EXPECTED_AUDIENCE = "118642709";
 
 const EXPECTED_ISSUERS = new Set([
   "https://accounts.huawei.com",
