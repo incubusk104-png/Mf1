@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { Globe2, Mail } from "lucide-react";
 
 import { AppGalleryCta } from "@/components/marketing/AppGalleryCta";
+import { InfoDrawer } from "@/components/marketing/InfoDrawer";
 import { SocialLinks } from "@/components/marketing/SocialLinks";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
@@ -28,7 +28,7 @@ export function SiteFooter() {
       </section>
 
       <div className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-5 py-10 sm:flex-row sm:flex-wrap">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
           <div className="flex items-center gap-2.5">
             <img src="/assets/logo.png" alt={`${site.name} logo`} className="h-7 w-7 object-contain" />
             <div>
@@ -37,30 +37,10 @@ export function SiteFooter() {
             </div>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <Link to="/privacy" className="transition-colors hover:text-foreground">
-              {t.footerPrivacyEn}
-            </Link>
-            <a
-              href={`mailto:${site.supportEmail}`}
-              className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-            >
-              <Mail className="h-3.5 w-3.5" aria-hidden />
-              {t.footerSupport}
-            </a>
-          </nav>
-
-          <SocialLinks />
-        </div>
-
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-5 pb-10 text-xs text-muted-foreground md:flex-row">
-          <p className="inline-flex items-center gap-1.5">
-            <Globe2 className="h-3.5 w-3.5" aria-hidden />
-            {t.footerServerNote}
-          </p>
-          <p>
-            © {new Date().getFullYear()} {site.name}. {t.footerRights}
-          </p>
+          <div className="flex items-center gap-3">
+            <SocialLinks />
+            <InfoDrawer />
+          </div>
         </div>
       </div>
     </footer>
