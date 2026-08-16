@@ -14,8 +14,6 @@ interface PolicyLayoutProps {
   title: string;
   updatedLabel: string;
   backLabel: string;
-  altVersionLabel: string;
-  altVersionTo: string;
   sections: PolicySection[];
   children?: ReactNode;
 }
@@ -25,8 +23,6 @@ export function PolicyLayout({
   title,
   updatedLabel,
   backLabel,
-  altVersionLabel,
-  altVersionTo,
   sections,
 }: PolicyLayoutProps) {
   return (
@@ -34,19 +30,13 @@ export function PolicyLayout({
       <div className="atmosphere pointer-events-none absolute inset-0" aria-hidden />
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 py-16">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             {backLabel}
-          </Link>
-          <Link
-            to={altVersionTo}
-            className="rounded-full border border-border bg-secondary px-4 py-1.5 text-sm font-medium transition-colors hover:border-primary/50"
-          >
-            {altVersionLabel}
           </Link>
         </div>
 
