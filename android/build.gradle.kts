@@ -5,11 +5,3 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.ksp) apply false
 }
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://developer.huawei.com/repo/") }
-    }
-}
