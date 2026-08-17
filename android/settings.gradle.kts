@@ -13,6 +13,7 @@ pluginManagement {
         maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -22,5 +23,6 @@ dependencyResolutionManagement {
         maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
+
 rootProject.name = "Mindset Frames Tracker"
 include(":app")
