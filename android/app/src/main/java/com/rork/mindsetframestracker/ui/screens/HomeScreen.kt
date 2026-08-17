@@ -752,7 +752,6 @@ fun HomeScreen(
             .align(Alignment.BottomEnd)
             .padding(end = 16.dp, bottom = 80.dp),
     )
-    }
 
     MilestoneCelebration(
         trigger = celebrationTrigger,
@@ -773,6 +772,7 @@ fun HomeScreen(
             .align(Alignment.TopCenter)
             .padding(top = 20.dp),
     )
+    }
 
     if (showDailyShareDialog) {
         DailyGoalShareDialog(
