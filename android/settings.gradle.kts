@@ -9,6 +9,8 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // Huawei repository required for building IAP dependencies
+        maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
 dependencyResolutionManagement {
@@ -16,7 +18,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Huawei HMS Core Maven repository — required for Account Kit (Huawei ID sign-in).
+        // Huawei HMS Core Maven repository — required for IAP and Account Kit.
         maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
