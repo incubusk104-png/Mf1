@@ -139,6 +139,10 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.huawei.hwid)
     implementation(libs.huawei.agconnect.core)
+    
+    // Huawei In-App Purchases (IAP) Kit for tips
+    implementation("com.huawei.hms:iap:6.11.0.301")
+
     implementation(libs.androidx.work.runtime.ktx)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.androidx.ui.tooling)
