@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.LocalFireDepartment
@@ -142,7 +143,6 @@ import com.rork.mindsetframestracker.ui.components.MilestoneCelebration
 import com.rork.mindsetframestracker.ui.components.MoodPicker
 import com.rork.mindsetframestracker.ui.components.ThemeToggleButton
 import com.rork.mindsetframestracker.ui.components.milestoneReached
-import com.rork.mindsetframestracker.ui.components.TipBubble
 import com.rork.mindsetframestracker.ui.components.TipSheet
 import com.rork.mindsetframestracker.ui.theme.DisplayFontFamily
 import com.rork.mindsetframestracker.ui.theme.LocalMoodTheme
@@ -732,25 +732,65 @@ fun HomeScreen(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
+            if (!hasAccess) {
+                item(key = "supportTip") {
+                    Card(
+                        onClick = { showTipSheet = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 12.dp),
+                            ) {
+                                Text(
+                                    text = "Enjoying the app?",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = "Leave a small tip to support development",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
 
     }
     }
 
-    // Tip Bubble placed cleanly above the nav bar area
+    // Support tip entry now lives inline in the habit list (see "supportTip"
+    // item above) instead of floating over content — was landing in dead
+    // space above the nav bar and reading as an accidental leftover element.
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .padding(bottom = 16.dp),
-    )
-
-    TipBubble(
-        visible = !hasAccess,
-        onClick = { showTipSheet = true },
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(end = 16.dp, bottom = 80.dp),
     )
 
     MilestoneCelebration(
