@@ -142,6 +142,8 @@ import com.rork.mindsetframestracker.ui.components.MilestoneCelebration
 import com.rork.mindsetframestracker.ui.components.MoodPicker
 import com.rork.mindsetframestracker.ui.components.ThemeToggleButton
 import com.rork.mindsetframestracker.ui.components.milestoneReached
+import com.rork.mindsetframestracker.ui.components.TipBubble
+import com.rork.mindsetframestracker.ui.components.TipSheet
 import com.rork.mindsetframestracker.ui.theme.DisplayFontFamily
 import com.rork.mindsetframestracker.ui.theme.LocalMoodTheme
 import com.rork.mindsetframestracker.util.StreakShare
@@ -171,6 +173,7 @@ fun HomeScreen(
     var showCompanionStudio by remember { mutableStateOf(false) }
     var showGrounding by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
+    var showTipSheet by remember { mutableStateOf(false) }
     val s = appStrings()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -734,6 +737,23 @@ fun HomeScreen(
     }
     }
 
+    // Tip Bubble placed cleanly above the nav bar area
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 16.dp),
+    )
+
+    TipBubble(
+        visible = !hasAccess,
+        onClick = { showTipSheet = true },
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 16.dp, bottom = 80.dp),
+    )
+    }
+
     MilestoneCelebration(
         trigger = celebrationTrigger,
         accentColors = listOf(
@@ -754,14 +774,6 @@ fun HomeScreen(
             .padding(top = 20.dp),
     )
 
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(bottom = 16.dp),
-    )
-    }
-
     if (showDailyShareDialog) {
         DailyGoalShareDialog(
             data = data,
@@ -772,6 +784,16 @@ fun HomeScreen(
                 }
             },
             onDismiss = { showDailyShareDialog = false },
+        )
+    }
+
+    if (showTipSheet) {
+        TipSheet(
+            onDismiss = { showTipSheet = false },
+            onSendTip = { amount ->
+                // TODO: route through Huawei IAP once wired - see TipSheet.kt note
+                showTipSheet = false
+            }
         )
     }
 
