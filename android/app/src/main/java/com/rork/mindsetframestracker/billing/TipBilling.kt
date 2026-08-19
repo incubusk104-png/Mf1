@@ -46,7 +46,7 @@ object TipBilling {
         data: Intent?,
         onResult: (TipPurchaseResult) -> Unit
     ) {
-        val purchaseResultInfo = Iap.getIapClient(context).parsePurchaseResultFromIntent(data)
+        val purchaseResultInfo = Iap.getIapClient(context).parsePurchaseResultInfoFromIntent(data)
         when (purchaseResultInfo.returnCode) {
             0 -> { // ORDER_STATE_SUCCESS
                 val inAppPurchaseData = purchaseResultInfo.inAppPurchaseData
