@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun TipSheet(
     onDismiss: () -> Unit,
-    onSendTip: (String) -> Unit, // Passes the selected Product ID ("tip.small", "tip.medium", "tip.large")
+    onSendTip: (String) -> Unit, // Passes the selected Product ID ("tip_small", "tip_medium", "tip_large")
 ) {
     val sheetState = rememberModalBottomSheetState()
 
@@ -59,7 +59,7 @@ fun TipSheet(
 
             // Tip Tier Buttons mapped to your Huawei IAP Product IDs
             Button(
-                onClick = { onSendTip("tip.small") },
+                onClick = { onSendTip("tip_small") },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("☕ Small Tip ($1.00)")
@@ -68,7 +68,7 @@ fun TipSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = { onSendTip("tip.medium") },
+                onClick = { onSendTip("tip_medium") },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("🚀 Medium Tip ($3.00)")
@@ -77,7 +77,7 @@ fun TipSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = { onSendTip("tip.large") },
+                onClick = { onSendTip("tip_large") },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("👑 Large Tip ($5.00)")
