@@ -179,6 +179,7 @@ fun HomeScreen(
     var showGrounding by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
     var showTipSheet by remember { mutableStateOf(false) }
+    var tipPurchaseInFlight by remember { mutableStateOf(false) }
     val s = appStrings()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -189,6 +190,7 @@ fun HomeScreen(
     ) { result ->
         activity?.let { act ->
             TipBilling.handlePurchaseResult(context = act, data = result.data) { outcome ->
+                tipPurchaseInFlight = false
                 when (outcome) {
                     is TipPurchaseResult.Success -> {
                         scope.launch { snackbarHostState.showSnackbar("Thank you for the tip! 💜") }
@@ -856,8 +858,10 @@ fun HomeScreen(
         TipSheet(
             onDismiss = { showTipSheet = false },
             onSendTip = { productId ->
+                if (tipPurchaseInFlight) return@TipSheet
                 showTipSheet = false
                 activity?.let { act ->
+                    tipPurchaseInFlight = true
                     TipBilling.purchase(
                         activity = act,
                         productId = productId,
@@ -865,6 +869,7 @@ fun HomeScreen(
                             tipLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
                         },
                         onError = { message ->
+                            tipPurchaseInFlight = false
                             scope.launch { snackbarHostState.showSnackbar(message) }
                         },
                     )
