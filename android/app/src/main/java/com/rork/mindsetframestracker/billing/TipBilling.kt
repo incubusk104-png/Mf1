@@ -34,17 +34,27 @@ object TipBilling {
 
             val task = Iap.getIapClient(activity).createPurchaseIntent(req)
             task.addOnSuccessListener { result ->
-                Log.i(TAG, "createPurchaseIntent success for $productId")
                 val status = result.status
+                Log.i(
+                    TAG,
+                    "createPurchaseIntent result for $productId — " +
+                        "statusCode=${status.statusCode}, message=${status.statusMessage}, " +
+                        "hasResolution=${status.hasResolution()}",
+                )
                 if (status.hasResolution()) {
                     status.resolution?.let { onReady(it.intentSender) }
                         ?: run {
-                            Log.w(TAG, "hasResolution() true but resolution was null")
                             onError("Unable to launch payment sheet.")
                         }
                 } else {
-                    Log.w(TAG, "No resolution available for $productId")
-                    onError("Unable to launch payment sheet.")
+                    // No resolution = Huawei rejected the purchase before any
+                    // payment UI could show. statusCode pinpoints why (see
+                    // OrderStatusCode in HMS docs) — surface it instead of a
+                    // generic message so it's visible without adb.
+                    onError(
+                        "Payment unavailable (code ${status.statusCode}): " +
+                            "${status.statusMessage ?: "no details"}",
+                    )
                 }
             }.addOnFailureListener { e ->
                 Log.e(TAG, "createPurchaseIntent failed for $productId", e)
