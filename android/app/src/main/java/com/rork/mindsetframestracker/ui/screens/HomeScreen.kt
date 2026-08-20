@@ -145,10 +145,6 @@ import com.rork.mindsetframestracker.ui.components.ThemeToggleButton
 import com.rork.mindsetframestracker.ui.components.milestoneReached
 import com.rork.mindsetframestracker.ui.components.TipSheet
 import com.rork.mindsetframestracker.billing.TipBilling
-import com.rork.mindsetframestracker.billing.TipPurchaseResult
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.IntentSenderRequest
 import com.rork.mindsetframestracker.ui.theme.DisplayFontFamily
 import com.rork.mindsetframestracker.ui.theme.LocalMoodTheme
 import com.rork.mindsetframestracker.util.StreakShare
@@ -185,25 +181,15 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
-    val tipLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
-    ) { result ->
-        activity?.let { act ->
-            TipBilling.handlePurchaseResult(context = act, data = result.data) { outcome ->
-                tipPurchaseInFlight = false
-                when (outcome) {
-                    is TipPurchaseResult.Success -> {
-                        scope.launch { snackbarHostState.showSnackbar("Thank you for the tip! 💜") }
-                        // TODO: send outcome.purchaseData + outcome.signature to
-                        // verify-tip-purchase here once wired to your Supabase client.
-                    }
-                    is TipPurchaseResult.Cancelled -> Unit
-                    is TipPurchaseResult.Error -> {
-                        scope.launch { snackbarHostState.showSnackbar(outcome.message) }
-                    }
-                }
-            }
-        }
+    // Huawei IAP resolves through Activity.startActivityForResult, handled in
+    // MainActivity.onActivityResult (not a Compose launcher — see TipBilling.kt
+    // for why). The result arrives here as a one-shot ViewModel event instead.
+    val tipMessage by viewModel.tipMessage.collectAsStateWithLifecycle()
+    LaunchedEffect(tipMessage) {
+        val message = tipMessage ?: return@LaunchedEffect
+        tipPurchaseInFlight = false
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeTipMessage()
     }
 
     // Effective theme (SYSTEM resolved) for the header's quick light/dark toggle.
@@ -865,9 +851,6 @@ fun HomeScreen(
                     TipBilling.purchase(
                         activity = act,
                         productId = productId,
-                        onReady = { intentSender ->
-                            tipLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
-                        },
                         onError = { message ->
                             tipPurchaseInFlight = false
                             scope.launch { snackbarHostState.showSnackbar(message) }
