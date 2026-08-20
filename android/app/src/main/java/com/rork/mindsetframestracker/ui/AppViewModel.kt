@@ -173,6 +173,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     )
     val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
 
+    // ── Tip purchase result (delivered via MainActivity.onActivityResult,
+    // since Huawei IAP's resolution must launch through the classic
+    // startActivityForResult path — see TipBilling.kt) ────────────────────
+
+    private val _tipMessage = MutableStateFlow<String?>(null)
+    val tipMessage: StateFlow<String?> = _tipMessage.asStateFlow()
+
+    /** Called from MainActivity.onActivityResult with a user-facing result message, or null for a silent cancel. */
+    fun onTipPurchaseResult(message: String?) {
+        _tipMessage.value = message
+    }
+
+    /** Call after the message has been shown once, so it doesn't reappear on rotation/recomposition. */
+    fun consumeTipMessage() {
+        _tipMessage.value = null
+    }
+
     // ── Save-your-data prompt ────────────────────────────────
 
     private val _showAuthPrompt = MutableStateFlow(false)
