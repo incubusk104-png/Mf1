@@ -44,7 +44,10 @@ object TipBilling {
                 if (status.hasResolution()) {
                     status.resolution?.let { onReady(it.intentSender) }
                         ?: run {
-                            onError("Unable to launch payment sheet.")
+                            onError(
+                                "Payment sheet unavailable (code ${status.statusCode}): " +
+                                    "${status.statusMessage ?: "no details"}",
+                            )
                         }
                 } else {
                     // No resolution = Huawei rejected the purchase before any
