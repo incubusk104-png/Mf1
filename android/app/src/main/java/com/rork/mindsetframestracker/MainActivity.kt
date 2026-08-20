@@ -153,6 +153,22 @@ class MainActivity : ComponentActivity() {
                     appViewModel.onHuaweiSignInFailed(result.message)
                 }
             }
+        } else if (requestCode == com.rork.mindsetframestracker.billing.TipBilling.PURCHASE_REQUEST_CODE) {
+            com.rork.mindsetframestracker.billing.TipBilling.handlePurchaseResult(this, data) { outcome ->
+                when (outcome) {
+                    is com.rork.mindsetframestracker.billing.TipPurchaseResult.Success -> {
+                        appViewModel.onTipPurchaseResult("Thank you for the tip! 💜")
+                        // TODO: send outcome.purchaseData + outcome.signature to
+                        // verify-tip-purchase once wired to your Supabase client.
+                    }
+                    is com.rork.mindsetframestracker.billing.TipPurchaseResult.Cancelled -> {
+                        appViewModel.onTipPurchaseResult(null)
+                    }
+                    is com.rork.mindsetframestracker.billing.TipPurchaseResult.Error -> {
+                        appViewModel.onTipPurchaseResult(outcome.message)
+                    }
+                }
+            }
         }
     }
 
