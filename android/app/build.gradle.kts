@@ -143,6 +143,9 @@ dependencies {
     // Huawei In-App Purchases (IAP) Kit for tips
     implementation("com.huawei.hms:iap:6.16.6.305")
 
+    // Huawei AppGallery version-update check (required by AppGallery review)
+    implementation("com.huawei.hms:appservice:6.14.0.300")
+
     implementation(libs.androidx.work.runtime.ktx)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.androidx.ui.tooling)
