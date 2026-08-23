@@ -1,4 +1,4 @@
-package com.rork.mindsetframestracker
+package com.rork.mindsetframestracker.auth
 
 import android.app.Activity
 import android.content.Intent
