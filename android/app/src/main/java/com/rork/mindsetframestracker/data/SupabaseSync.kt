@@ -415,6 +415,42 @@ class SupabaseSync(context: Context) {
             setBody("{}")
         }
 
+    @Serializable
+    private data class HabitRecommendBody(val existing_habits: List<String>)
+
+    @Serializable
+    data class RemoteHabitSuggestion(val name: String, val reason: String)
+
+    @Serializable
+    private data class HabitRecommendResponse(val suggestions: List<RemoteHabitSuggestion>? = null)
+
+    /**
+     * Calls the habit-recommend edge function (server-side Gemini free-tier
+     * proxy — see backend/functions/habit-recommend). Returns null on ANY
+     * failure — not signed in, network error, daily quota hit, bad response
+     * — so the caller can fall back to the on-device HabitRecommender
+     * without ever surfacing an error to the user.
+     */
+    suspend fun getAiHabitSuggestions(existingHabitNames: List<String>): List<RemoteHabitSuggestion>? {
+        if (!isConfigured || accessToken == null) return null
+        return try {
+            val response = client.post("$baseUrl/functions/v1/habit-recommend") {
+                header("apikey", anonKey)
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                contentType(ContentType.Application.Json)
+                setBody(HabitRecommendBody(existingHabitNames))
+            }
+            if (!response.status.isSuccess()) {
+                Log.i(TAG, "AI habit recommend unavailable: ${response.status}")
+                return null
+            }
+            response.body<HabitRecommendResponse>().suggestions
+        } catch (e: Exception) {
+            Log.w(TAG, "AI habit recommend failed: ${e.message}")
+            null
+        }
+    }
+
     /** Clears the local session. */
     fun signOut() {
         prefs.edit()
