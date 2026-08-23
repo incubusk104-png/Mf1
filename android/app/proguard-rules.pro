@@ -78,3 +78,10 @@
 -dontwarn com.huawei.updatesdk.**
 -keep class com.huawei.android.hms.** { *; }
 -dontwarn com.huawei.android.hms.**
+
+# ── R8 missing-class fix: optional Huawei classes not in our classpath ──
+# appservice pulls in markethomecountrysdk + serviceverifykit, which
+# reference these at runtime only on certain Huawei device configs. Not
+# on our compile classpath and not needed — tell R8 not to fail on them.
+-dontwarn com.huawei.android.app.**
+-dontwarn com.huawei.appgallery.**
