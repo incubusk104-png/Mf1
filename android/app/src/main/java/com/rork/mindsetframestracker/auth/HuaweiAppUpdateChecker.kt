@@ -21,6 +21,7 @@ object HuaweiAppUpdateChecker {
     private const val TAG = "HuaweiAppUpdate"
 
     fun checkForUpdate(activity: Activity) {
+        if (!HuaweiAuthClient.isHmsAvailable(activity)) return
         runCatching {
             val client: AppUpdateClient = JosApps.getAppUpdateClient(activity)
             client.checkAppUpdate(activity, UpdateCallback(activity, client))
