@@ -102,6 +102,10 @@ fun HabitsScreen(viewModel: AppViewModel) {
     val hasAccess = data.settings.hasFeatureAccess()
     val atFreeCap = !hasAccess && data.habits.size >= MAX_FREE_HABITS
     val snackbarHostState = remember { SnackbarHostState() }
+    var suggestions by remember { mutableStateOf<List<HabitSuggestion>>(emptyList()) }
+    LaunchedEffect(data.habits.size) {
+        suggestions = if (data.habits.isNotEmpty()) viewModel.getSuggestions() else emptyList()
+    }
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val moodTheme = LocalMoodTheme.current
@@ -161,38 +165,34 @@ fun HabitsScreen(viewModel: AppViewModel) {
                 }
             }
 
-            if (data.habits.isNotEmpty()) {
-                var suggestions by remember { mutableStateOf<List<HabitSuggestion>>(emptyList()) }
-                LaunchedEffect(data.habits.size) { suggestions = viewModel.getSuggestions() }
-                if (suggestions.isNotEmpty()) {
-                    item {
-                        Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Outlined.AutoAwesome,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = "Suggested for you",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(start = 6.dp),
-                                )
-                            }
-                            suggestions.take(3).forEach { suggestion ->
-                                AssistChip(
-                                    onClick = {
-                                        if (viewModel.canAddHabit()) {
-                                            viewModel.addHabit(suggestion.name)
-                                        } else {
-                                            showPremiumSheet = true
-                                        }
-                                    },
-                                    label = { Text("${suggestion.name} — ${suggestion.reason}") },
-                                    modifier = Modifier.padding(top = 6.dp),
-                                )
-                            }
+            if (data.habits.isNotEmpty() && suggestions.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = "Suggested for you",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(start = 6.dp),
+                            )
+                        }
+                        suggestions.take(3).forEach { suggestion ->
+                            AssistChip(
+                                onClick = {
+                                    if (viewModel.canAddHabit()) {
+                                        viewModel.addHabit(suggestion.name)
+                                    } else {
+                                        showPremiumSheet = true
+                                    }
+                                },
+                                label = { Text("${suggestion.name} — ${suggestion.reason}") },
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
                         }
                     }
                 }
