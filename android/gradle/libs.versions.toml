@@ -18,6 +18,7 @@ browser = "1.9.0"
 huaweiHwid = "6.14.0.300"
 agconnectCore = "1.9.6.300"
 workManager = "2.11.2"
+pdfboxAndroid = "2.0.27.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +50,7 @@ huawei-hwid = { group = "com.huawei.hms", name = "hwid", version.ref = "huaweiHw
 huawei-agconnect-core = { group = "com.huawei.agconnect", name = "agconnect-core", version.ref = "agconnectCore" }
 # WorkManager — guaranteed daily cloud backup even when the app isn't open.
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+pdfbox-android = { group = "com.tom-roush", name = "PdfBox-Android", version.ref = "pdfboxAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
