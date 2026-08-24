@@ -54,23 +54,6 @@ import kotlinx.coroutines.withContext
  * that turns out to be readable text, tap a live on-device suggestion
  * while typing, or speak habits one at a time. Free-tier cap enforcement
  * happens in AppViewModel.addHabits - this sheet only handles input.
- *
- * File import deliberately opens the system's "all documents" picker
- * (no mime-type restriction) since many importable files - exported notes,
- * .csv, .md, files with no extension - don't carry a text/* mime type
- * Android recognizes. Whatever is picked is read as bytes and the real
- * format is detected from those bytes: plain text, Word (.docx), and PDF
- * (.pdf) are all supported - see [readImportedFile]. Anything else
- * (images, audio, etc.) is rejected with a clear message instead of
- * dumping binary garbage into the field.
- *
- * @param suggestions Pre-computed suggestions (AI or on-device fallback -
- *   see AppViewModel.getSuggestions). No new AI call happens here; this
- *   sheet only filters that existing list against what's being typed, so
- *   live suggestions cost nothing extra.
- * @param voiceInputUnlocked Whether the mic button is usable (Premium gate,
- *   same as the single-habit dialog) - when false, tapping it calls
- *   [onRequirePremium] instead of listening.
  */
 @Composable
 fun BulkAddHabitsSheet(
@@ -147,9 +130,6 @@ fun BulkAddHabitsSheet(
         title = { Text("Add multiple habits") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // -- Header row: helper copy on the left, actions grouped and
-                // evenly spaced on the right so they read as one toolbar
-                // instead of two icons crowding the corner. --
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -173,8 +153,6 @@ fun BulkAddHabitsSheet(
                             FilledTonalIconButton(
                                 onClick = {
                                     importError = null
-                                    // "*/*" opens the full "all documents" system picker -
-                                    // readImportedFile() detects the real format afterward.
                                     filePickerLauncher.launch(arrayOf("*/*"))
                                 },
                                 modifier = Modifier.size(36.dp),
@@ -279,7 +257,9 @@ fun BulkAddHabitsSheet(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
+            TextButton(onClick = onDismiss) { 
+                Text("Cancel") 
+            }
+        }
     )
 }
