@@ -145,7 +145,7 @@ fun BulkAddHabitsSheet(
                         if (isImporting) {
                             CircularProgressIndicator(
                                 modifier = Modifier
-                                    .size(IconButtonDefaults.smallContainerSize().height)
+                                    .size(36.dp)
                                     .padding(6.dp),
                                 strokeWidth = 2.dp,
                             )
@@ -260,6 +260,6 @@ fun BulkAddHabitsSheet(
             TextButton(onClick = onDismiss) { 
                 Text("Cancel") 
             }
-        }
+        },
     )
 }
