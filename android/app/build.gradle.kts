@@ -129,7 +129,13 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.koin.androidx.compose)
     implementation(libs.androidx.browser)
-    implementation(libs.huawei.hwid)
+    
+    // Fixed block from Claude's guidance:
+    implementation(libs.huawei.hwid) {
+        exclude(group = "com.huawei.hms", module = "stats")
+        exclude(group = "com.huawei.hms", module = "device")
+    }
+
     implementation(libs.huawei.agconnect.core)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
