@@ -98,55 +98,12 @@ android {
     }
 }
 
+dependencies {
+    // Other dependencies can go here...
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.pdfbox.android)
+}
+
 tasks.named("preBuild") {
     dependsOn(copyAgconnectServices)
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
-}
-
-dependencies {
-    constraints {
-        implementation("com.huawei.hms:network-grs:8.0.1.324")
-        implementation("com.huawei.android.hms:security-base:2.0.0.302")
-        implementation("com.huawei.android.hms:security-ssl:2.0.0.302")
-        implementation("com.huawei.android.hms:security-encrypt:2.0.0.302")
-    }
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.json)
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
-    implementation(libs.koin.androidx.compose)
-    implementation(libs.androidx.browser)
-    implementation(libs.huawei.hwid)
-    implementation(libs.huawei.agconnect.core)
-    
-    // Huawei In-App Purchases (IAP) Kit for tips
-    implementation("com.huawei.hms:iap:6.16.6.305")
-
-    // Huawei AppGallery version-update check (required by AppGallery review)
-    implementation("com.huawei.hms:appservice:6.14.0.300")
-
-    implementation(libs.androidx.work.runtime.ktx)
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-    debugImplementation(libs.androidx.ui.tooling)
 }
