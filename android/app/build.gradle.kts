@@ -102,6 +102,7 @@ dependencies {
     // Other dependencies can go here...
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
 
 tasks.named("preBuild") {
