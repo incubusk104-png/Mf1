@@ -105,7 +105,6 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_11)
     }
 }
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -129,7 +128,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.koin.androidx.compose)
     implementation(libs.androidx.browser)
-    
+
     // Huawei Account Kit
     implementation(libs.huawei.hwid) {
         exclude(group = "com.huawei.hms", module = "stats")
@@ -138,6 +137,12 @@ dependencies {
 
     // Huawei AppGallery Connect Core
     implementation(libs.huawei.agconnect.core)
+
+    // Huawei App Update (JosApps / AppUpdateClient live here)
+    implementation(libs.huawei.update) {
+        exclude(group = "com.huawei.hms", module = "stats")
+        exclude(group = "com.huawei.hms", module = "device")
+    }
 
     // HMS Core modules with explicit exclusions for missing network-grs / security sub-dependencies
     implementation("com.huawei.hms:base:6.11.0.300") {
@@ -153,8 +158,4 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
-}
-
-tasks.named("preBuild") {
-    dependsOn(copyAgconnectServices)
 }
