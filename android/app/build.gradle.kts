@@ -105,6 +105,7 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_11)
     }
 }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -158,4 +159,13 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+}
+
+// Wire the copy task directly onto every variant's asset-merge task. Hooking
+// this onto "preBuild" instead is NOT reliable — mergeXxxAssets tasks aren't
+// guaranteed to sit downstream of preBuild in AGP's task graph, especially
+// with configuration cache enabled, so the json can silently never make it
+// into assets even though the copy task exists and the build succeeds.
+tasks.matching { it.name.matches(Regex("merge.*Assets")) }.configureEach {
+    dependsOn(copyAgconnectServices)
 }
