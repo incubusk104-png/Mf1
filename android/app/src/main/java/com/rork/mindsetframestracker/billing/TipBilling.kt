@@ -10,7 +10,7 @@ import com.huawei.hms.iap.entity.PurchaseIntentReq
 
 sealed class TipPurchaseResult {
     data class Success(val purchaseData: String, val signature: String) : TipPurchaseResult()
-    object Cancelled : TipPurchaseResult()
+    data object Cancelled : TipPurchaseResult()
     data class Error(val message: String) : TipPurchaseResult()
 }
 
