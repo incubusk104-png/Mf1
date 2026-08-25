@@ -139,10 +139,10 @@ dependencies {
     // Huawei AppGallery Connect Core
     implementation(libs.huawei.agconnect.core)
 
-    // Essential Huawei Mobile Services (HMS) modules required for IAP & App Updates
-    implementation("com.huawei.hms:base:6.12.0.301")
-    implementation("com.huawei.hms:iap:6.12.0.300")
-    implementation("com.huawei.hms:update:6.12.0.300")
+    // Stable Huawei Mobile Services (HMS) modules for IAP & App Updates
+    implementation("com.huawei.hms:base:6.11.0.300")
+    implementation("com.huawei.hms:iap:6.11.0.300")
+    implementation("com.huawei.hms:update:6.11.0.300")
 
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
