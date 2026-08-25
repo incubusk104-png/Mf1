@@ -130,13 +130,20 @@ dependencies {
     implementation(libs.koin.androidx.compose)
     implementation(libs.androidx.browser)
     
-    // Fixed block from Claude's guidance:
+    // Huawei Account Kit
     implementation(libs.huawei.hwid) {
         exclude(group = "com.huawei.hms", module = "stats")
         exclude(group = "com.huawei.hms", module = "device")
     }
 
+    // Huawei AppGallery Connect Core
     implementation(libs.huawei.agconnect.core)
+
+    // Essential Huawei Mobile Services (HMS) modules required for IAP & App Updates
+    implementation("com.huawei.hms:base:6.12.0.301")
+    implementation("com.huawei.hms:iap:6.12.0.300")
+    implementation("com.huawei.hms:update:6.12.0.300")
+
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
