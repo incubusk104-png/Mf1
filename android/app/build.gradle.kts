@@ -33,6 +33,19 @@ fun resolveRorkValue(privateName: String, publicName: String, propertyName: Stri
 // ---------------------------------------------------------------------------
 // Huawei agconnect-services.json support.
 // ---------------------------------------------------------------------------
+// HMS Core ships optional modules (stats, device, network-grs) that this app
+// doesn't use and that pull in extra permissions/size for no benefit. Exclude
+// them at the configuration level so the rule applies no matter which
+// transitive path (hwid, appservice, base, iap, ...) or resolved version
+// brings a given HMS module in — a per-declaration `exclude {}` only binds to
+// that one exact dependency coordinate and silently stops applying if Gradle's
+// conflict resolution ends up picking a different version/path for it.
+configurations.all {
+    exclude(group = "com.huawei.hms", module = "stats")
+    exclude(group = "com.huawei.hms", module = "device")
+    exclude(group = "com.huawei.hms", module = "network-grs")
+}
+
 val agconnectGeneratedAssets = layout.buildDirectory.dir("generated/agconnect/assets")
 val copyAgconnectServices = tasks.register<Copy>("copyAgconnectServices") {
     from(layout.projectDirectory.file("agconnect-services.json"))
@@ -131,37 +144,20 @@ dependencies {
     implementation(libs.androidx.browser)
 
     // Huawei Account Kit
-    implementation(libs.huawei.hwid) {
-        exclude(group = "com.huawei.hms", module = "stats")
-        exclude(group = "com.huawei.hms", module = "device")
-    }
+    implementation(libs.huawei.hwid)
 
     // Huawei AppGallery Connect Core
     implementation(libs.huawei.agconnect.core)
 
     // Huawei App Update (JosApps / AppUpdateClient live here)
-    implementation(libs.huawei.update) {
-        exclude(group = "com.huawei.hms", module = "stats")
-        exclude(group = "com.huawei.hms", module = "device")
-    }
+    implementation(libs.huawei.update)
 
-    // HMS Core modules — pinned to the SAME version as hwid/update above.
-    // These were previously pinned to 6.11.0.300 while hwid/update pull in
-    // base@6.14.0.300 transitively. Gradle's default conflict resolution
-    // picks the higher version, so this declaration (and its excludes) was
-    // silently losing to hwid's own transitive "base" request — meaning the
-    // app actually ran against an unfiltered, version-mismatched HMS base
-    // at runtime, not the one configured here. That's the most likely cause
-    // of HuaweiApiAvailability silently misbehaving on real devices.
-    implementation("com.huawei.hms:base:6.14.0.300") {
-        exclude(group = "com.huawei.hms", module = "stats")
-        exclude(group = "com.huawei.hms", module = "device")
-        exclude(group = "com.huawei.hms", module = "network-grs")
-    }
-    implementation("com.huawei.hms:iap:6.14.0.300") {
-        exclude(group = "com.huawei.hms", module = "stats")
-        exclude(group = "com.huawei.hms", module = "device")
-    }
+    // HMS Core modules. Note: base/iap do NOT share hwid/appservice's version
+    // numbering (6.14.0.300 isn't published for base/iap) — Huawei versions
+    // each HMS module independently, so don't assume they move in lockstep.
+    // 6.11.0.300 is the latest base/iap release that's actually resolvable.
+    implementation("com.huawei.hms:base:6.11.0.300")
+    implementation("com.huawei.hms:iap:6.11.0.300")
 
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
