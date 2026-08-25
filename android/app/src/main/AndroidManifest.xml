@@ -15,6 +15,20 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Required on targetSdk 30+: Android's package-visibility filtering
+         hides other apps' package info by default. Without declaring HMS
+         Core here, HuaweiApiAvailability.isHuaweiMobileServicesAvailable()
+         can't see HMS Core is installed even when it genuinely is, and
+         always reports SERVICE_MISSING (code 1) — this is what was
+         blocking Huawei sign-in on devices that DO have HMS Core. -->
+    <queries>
+        <package android:name="com.huawei.hwid" />
+        <package android:name="com.huawei.appmarket" />
+        <intent>
+            <action android:name="com.huawei.hms.core.aidlservice" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         tools:replace="android:allowBackup"
