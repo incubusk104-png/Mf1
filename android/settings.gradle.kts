@@ -9,7 +9,7 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
-        // Huawei repository required for building IAP dependencies
+        // Huawei repository for plugins
         maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
