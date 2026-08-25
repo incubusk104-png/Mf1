@@ -166,6 +166,14 @@ dependencies {
 // guaranteed to sit downstream of preBuild in AGP's task graph, especially
 // with configuration cache enabled, so the json can silently never make it
 // into assets even though the copy task exists and the build succeeds.
-tasks.matching { it.name.matches(Regex("merge.*Assets")) }.configureEach {
+//
+// Lint's analysis tasks (lintVitalAnalyze*, generate*LintReportModel, ...)
+// also read the generated assets dir directly, but they sit OUTSIDE the
+// merge*Assets task chain, so they need copyAgconnectServices wired in too —
+// otherwise Gradle's task validation flags an undeclared/implicit dependency
+// and fails the build (as seen in run #79).
+tasks.matching {
+    it.name.matches(Regex("merge.*Assets")) || it.name.contains("Lint", ignoreCase = true)
+}.configureEach {
     dependsOn(copyAgconnectServices)
 }
