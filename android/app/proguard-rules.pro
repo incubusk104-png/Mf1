@@ -85,3 +85,9 @@
 # on our compile classpath and not needed — tell R8 not to fail on them.
 -dontwarn com.huawei.android.app.**
 -dontwarn com.huawei.appgallery.**
+
+# ── R8 missing-class fix: optional JPEG2000 codec used by PdfBox-Android ──
+# JPXFilter references com.gemalto.jp2.JP2Decoder only for JPEG2000-encoded
+# images inside PDFs. We don't ship the gemalto jp2 codec (not needed for
+# standard PDF text/image handling) — tell R8 not to fail on the missing ref.
+-dontwarn com.gemalto.jp2.**
