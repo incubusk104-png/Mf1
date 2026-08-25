@@ -17,7 +17,7 @@ huaweiHwid = "6.14.0.300"
 agconnectCore = "1.9.6.300"
 workManager = "2.11.2"
 pdfboxAndroid = "2.0.27.0"
-huaweiUpdate = "6.13.0.300" # Added Huawei App Update SDK version
+huaweiUpdate = "6.14.0.300" # Added Huawei App Update SDK version (uses appservice artifact)
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,7 +45,7 @@ desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", ver
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 huawei-hwid = { group = "com.huawei.hms", name = "hwid", version.ref = "huaweiHwid" }
 huawei-agconnect-core = { group = "com.huawei.agconnect", name = "agconnect-core", version.ref = "agconnectCore" }
-huawei-update = { group = "com.huawei.hms", name = "appupdate", version.ref = "huaweiUpdate" } # Added Huawei App Update library mapping
+huawei-update = { group = "com.huawei.hms", name = "appservice", version.ref = "huaweiUpdate" } # Added Huawei App Update library mapping
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 
