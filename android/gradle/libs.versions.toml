@@ -13,12 +13,11 @@ coil = "3.4.0"
 koin = "4.1.1"
 desugar = "2.1.5"
 browser = "1.9.0"
-# 6.15.0.300 is listed in Huawei's repo metadata but its POM is missing (404),
-# which breaks Gradle resolution — 6.14.0.300 is the newest fully-published version.
 huaweiHwid = "6.14.0.300"
 agconnectCore = "1.9.6.300"
 workManager = "2.11.2"
 pdfboxAndroid = "2.0.27.0"
+huaweiUpdate = "6.13.0.300" # Added Huawei App Update SDK version
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,13 +43,11 @@ coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp"
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
-# Huawei Account Kit — native HUAWEI ID sign-in for AppGallery distribution.
 huawei-hwid = { group = "com.huawei.hms", name = "hwid", version.ref = "huaweiHwid" }
-# AGConnect core — initializes from agconnect-services.json at runtime.
 huawei-agconnect-core = { group = "com.huawei.agconnect", name = "agconnect-core", version.ref = "agconnectCore" }
-# WorkManager — guaranteed daily cloud backup even when the app isn't open.
+huawei-update = { group = "com.huawei.hms", name = "appupdate", version.ref = "huaweiUpdate" } # Added Huawei App Update library mapping
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
-pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+pdfbox-android = { group = "com.tom-roush", name = "PdfBox-Android", version.ref = "pdfboxAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
