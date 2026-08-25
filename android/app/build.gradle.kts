@@ -139,9 +139,16 @@ dependencies {
     // Huawei AppGallery Connect Core
     implementation(libs.huawei.agconnect.core)
 
-    // Synchronized stable HMS Core modules (Base & IAP)
-    implementation("com.huawei.hms:base:6.11.0.300")
-    implementation("com.huawei.hms:iap:6.11.0.300")
+    // HMS Core modules with explicit exclusions for missing network-grs / security sub-dependencies
+    implementation("com.huawei.hms:base:6.11.0.300") {
+        exclude(group = "com.huawei.hms", module = "stats")
+        exclude(group = "com.huawei.hms", module = "device")
+        exclude(group = "com.huawei.hms", module = "network-grs")
+    }
+    implementation("com.huawei.hms:iap:6.11.0.300") {
+        exclude(group = "com.huawei.hms", module = "stats")
+        exclude(group = "com.huawei.hms", module = "device")
+    }
 
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
