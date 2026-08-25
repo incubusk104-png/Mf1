@@ -72,6 +72,17 @@ object HuaweiAuthClient {
     }.getOrDefault(false)
 
     /**
+     * Same check as [isHmsAvailable] but returns the raw HMS connection
+     * result code on failure so the UI/logs can tell "HMS Core missing" apart
+     * from "HMS Core installed but outdated/disabled" — collapsing those into
+     * one generic message is what made this look like a code bug instead of
+     * a device-state issue.
+     */
+    private fun hmsConnectionResult(context: Context): Int = runCatching {
+        HuaweiApiAvailability.getInstance().isHuaweiMobileServicesAvailable(context)
+    }.getOrDefault(ConnectionResult.SERVICE_MISSING)
+
+    /**
      * Basic-profile auth parameters — ID token + email only. The ID token is
      * a Huawei-signed credential that the backend verifies with Huawei's
      * account server before minting a session, so a forged or replayed
@@ -103,8 +114,18 @@ object HuaweiAuthClient {
             }
         }
         if (!isHmsAvailable(activity)) {
-            Log.w(TAG, "Huawei sign-in blocked — HMS Core unavailable on this device")
-            return "Huawei Mobile Services isn't available on this device. Use email sign-in instead."
+            val code = hmsConnectionResult(activity)
+            Log.w(TAG, "Huawei sign-in blocked — HMS availability check returned code $code")
+            return when (code) {
+                ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED ->
+                    "HUAWEI Mobile Services needs an update on this device. Update HMS Core from AppGallery, then try again."
+                ConnectionResult.SERVICE_DISABLED ->
+                    "HUAWEI Mobile Services is disabled on this device. Enable it in system settings, then try again."
+                ConnectionResult.SERVICE_INVALID ->
+                    "This build's HUAWEI Mobile Services install looks invalid. Reinstall HMS Core from AppGallery."
+                else ->
+                    "HUAWEI Mobile Services isn't available on this device (code $code). Use email sign-in instead."
+            }
         }
         return try {
             val service = AccountAuthManager.getService(activity, authParams())
