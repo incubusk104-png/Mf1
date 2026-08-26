@@ -13,6 +13,7 @@ enum class Feature {
     HUAWEI_HEALTH_KIT,
     HEALTH_CONNECT,
     STRAVA,
+    AI_INSIGHTS,  // NEW
 }
 
 object Entitlements {
@@ -29,7 +30,8 @@ object Entitlements {
         Feature.UNLIMITED_HABITS,
         Feature.ALL_LANGUAGES,
         Feature.PDF_EXPORTS,
-        Feature.HEALTH_CONNECT -> tier != SubscriptionTier.NONE
+        Feature.HEALTH_CONNECT,
+        Feature.AI_INSIGHTS -> tier != SubscriptionTier.NONE
         Feature.HUAWEI_HEALTH_KIT -> true  // free for everyone, no tier check
         Feature.STRAVA -> tier == SubscriptionTier.REGULAR
     }
