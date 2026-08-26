@@ -47,4 +47,4 @@ object HuaweiHealthKitClient {
     }
 
     fun isActivitySupported(iconId: String): Boolean = iconId in supportedActivityIconIds
-}.kt
+}
