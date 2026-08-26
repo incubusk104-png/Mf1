@@ -1,0 +1,68 @@
+package com.rork.mindsetframestracker.integrations
+
+import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import com.rork.mindsetframestracker.billing.Entitlements
+import com.rork.mindsetframestracker.billing.Feature
+import com.rork.mindsetframestracker.billing.SubscriptionTier
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
+sealed class HealthConnectStatus {
+    data object NotInstalled : HealthConnectStatus()
+    data object PermissionsNeeded : HealthConnectStatus()
+    data object Ready : HealthConnectStatus()
+}
+
+object MindsetHealthConnectClient {
+
+    val requiredPermissions = setOf(
+        androidx.health.connect.client.permission.HealthPermission.getReadPermission(StepsRecord::class),
+        androidx.health.connect.client.permission.HealthPermission.getReadPermission(SleepSessionRecord::class),
+    )
+
+    fun checkStatus(context: Context): HealthConnectStatus {
+        val availability = HealthConnectClient.getSdkStatus(context)
+        if (availability != HealthConnectClient.SDK_AVAILABLE) return HealthConnectStatus.NotInstalled
+        return HealthConnectStatus.PermissionsNeeded // caller verifies actual grant via permission launcher
+    }
+
+    fun permissionRequestContract() = PermissionController.createRequestPermissionResultContract()
+
+    suspend fun todaySteps(context: Context, tier: SubscriptionTier): Long? {
+        if (!Entitlements.hasAccess(tier, Feature.HEALTH_CONNECT)) return null
+        val client = HealthConnectClient.getOrCreate(context)
+        val now = Instant.now()
+        val startOfDay = now.truncatedTo(ChronoUnit.DAYS)
+
+        val response = client.readRecords(
+            ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+            ),
+        )
+        return response.records.sumOf { it.count }
+    }
+
+    suspend fun lastNightSleepMinutes(context: Context, tier: SubscriptionTier): Long? {
+        if (!Entitlements.hasAccess(tier, Feature.HEALTH_CONNECT)) return null
+        val client = HealthConnectClient.getOrCreate(context)
+        val now = Instant.now()
+        val yesterday = now.minus(1, ChronoUnit.DAYS)
+
+        val response = client.readRecords(
+            ReadRecordsRequest(
+                recordType = SleepSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(yesterday, now),
+            ),
+        )
+        return response.records.sumOf {
+            ChronoUnit.MINUTES.between(it.startTime, it.endTime)
+        }
+    }
+}
