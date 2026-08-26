@@ -18,6 +18,12 @@ data class Habit(
     val createdAt: Long = 0L,
     /** Pinned (favorite) habits always sort to the top of habit lists. */
     val isPinned: Boolean = false,
+    /** Minutes from midnight for this habit's own reminder. Null = no individual alarm. */
+    val reminderMinutes: Int? = null,
+    /** For timed habits (meditation, workout). Null = simple checkbox habit. */
+    val durationSeconds: Int? = null,
+    /** Links to HabitIconCatalog.HabitIcon.id for visual picker display. */
+    val iconId: String? = null,
 )
 
 @Serializable
