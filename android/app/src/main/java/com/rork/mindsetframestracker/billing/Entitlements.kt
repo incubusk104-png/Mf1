@@ -29,10 +29,8 @@ object Entitlements {
         Feature.UNLIMITED_HABITS,
         Feature.ALL_LANGUAGES,
         Feature.PDF_EXPORTS,
-        Feature.HUAWEI_HEALTH_KIT,
         Feature.HEALTH_CONNECT -> tier != SubscriptionTier.NONE
-        // Strava gated to Regular only, per your call above — remove this
-        // special case if you decide Founding should get it too.
+        Feature.HUAWEI_HEALTH_KIT -> true  // free for everyone, no tier check
         Feature.STRAVA -> tier == SubscriptionTier.REGULAR
     }
 }
