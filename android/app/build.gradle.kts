@@ -33,13 +33,6 @@ fun resolveRorkValue(privateName: String, publicName: String, propertyName: Stri
 // ---------------------------------------------------------------------------
 // Huawei agconnect-services.json support.
 // ---------------------------------------------------------------------------
-// HMS Core ships optional modules (stats, device, network-grs) that this app
-// doesn't use and that pull in extra permissions/size for no benefit. Exclude
-// them at the configuration level so the rule applies no matter which
-// transitive path (hwid, appservice, base, iap, ...) or resolved version
-// brings a given HMS module in — a per-declaration `exclude {}` only binds to
-// that one exact dependency coordinate and silently stops applying if Gradle's
-// conflict resolution ends up picking a different version/path for it.
 configurations.all {
     exclude(group = "com.huawei.hms", module = "stats")
     exclude(group = "com.huawei.hms", module = "device")
@@ -152,6 +145,9 @@ dependencies {
     // Huawei App Update (JosApps / AppUpdateClient live here)
     implementation(libs.huawei.update)
 
+    // Huawei Health Kit
+    implementation("com.huawei.hms:health:6.13.0.302")
+
     // HMS Core modules. Note: base/iap do NOT share hwid/appservice's version
     // numbering (6.14.0.300 isn't published for base/iap) — Huawei versions
     // each HMS module independently, so don't assume they move in lockstep.
@@ -164,17 +160,6 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
 
-// Wire the copy task directly onto every variant's asset-merge task. Hooking
-// this onto "preBuild" instead is NOT reliable — mergeXxxAssets tasks aren't
-// guaranteed to sit downstream of preBuild in AGP's task graph, especially
-// with configuration cache enabled, so the json can silently never make it
-// into assets even though the copy task exists and the build succeeds.
-//
-// Lint's analysis tasks (lintVitalAnalyze*, generate*LintReportModel, ...)
-// also read the generated assets dir directly, but they sit OUTSIDE the
-// merge*Assets task chain, so they need copyAgconnectServices wired in too —
-// otherwise Gradle's task validation flags an undeclared/implicit dependency
-// and fails the build (as seen in run #79).
 tasks.matching {
     it.name.matches(Regex("merge.*Assets")) || it.name.contains("Lint", ignoreCase = true)
 }.configureEach {
