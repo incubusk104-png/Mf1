@@ -162,6 +162,11 @@ dependencies {
     implementation("com.huawei.hms:base:6.11.0.300")
     implementation("com.huawei.hms:iap:6.11.0.300")
 
+    // AndroidX Health Connect (Google's on-device health data API — the
+    // HealthConnectClient/HealthPermission/StepsRecord/SleepSessionRecord
+    // symbols used in integrations/HealthConnectClient.kt live here).
+    implementation(libs.androidx.health.connect.client)
+
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.pdfbox.android)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
