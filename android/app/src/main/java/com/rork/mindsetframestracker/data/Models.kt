@@ -128,6 +128,7 @@ data class AppData(
     val moodHistory: Map<String, MoodMode> = emptyMap(),
     /** ISO day key -> one-line grounding micro-journal entry for that day. */
     val reflections: Map<String, String> = emptyMap(),
+    val activityRecords: List<ActivityRecord> = emptyList(),
     val settings: AppSettings = AppSettings(),
 )
 
