@@ -1,6 +1,7 @@
 package com.rork.mindsetframestracker.integrations
 
 import android.content.Context
+import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -28,6 +29,11 @@ object MindsetHealthConnectClient {
     )
 
     fun checkStatus(context: Context): HealthConnectStatus {
+        // The connect-client artifact's own AndroidManifest declares minSdk 26 (we
+        // override that merge conflict in AndroidManifest.xml so the app can stay
+        // at minSdk 24 for everything else) — so on API 24/25 devices we must
+        // never actually call into the SDK, only report it as unavailable.
+        if (Build.VERSION.SDK_INT < 26) return HealthConnectStatus.NotInstalled
         val availability = HealthConnectClient.getSdkStatus(context)
         return if (availability != HealthConnectClient.SDK_AVAILABLE) {
             HealthConnectStatus.NotInstalled
@@ -39,6 +45,7 @@ object MindsetHealthConnectClient {
     fun permissionRequestContract() = PermissionController.createRequestPermissionResultContract()
 
     suspend fun todaySteps(context: Context, tier: SubscriptionTier): Long? {
+        if (Build.VERSION.SDK_INT < 26) return null
         if (!Entitlements.hasAccess(tier, Feature.HEALTH_CONNECT)) return null
         val client = HealthConnectClient.getOrCreate(context)
         val now = Instant.now()
@@ -54,6 +61,7 @@ object MindsetHealthConnectClient {
     }
 
     suspend fun lastNightSleepMinutes(context: Context, tier: SubscriptionTier): Long? {
+        if (Build.VERSION.SDK_INT < 26) return null
         if (!Entitlements.hasAccess(tier, Feature.HEALTH_CONNECT)) return null
         val client = HealthConnectClient.getOrCreate(context)
         val now = Instant.now()
