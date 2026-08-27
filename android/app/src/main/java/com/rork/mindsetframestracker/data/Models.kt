@@ -27,6 +27,20 @@ data class Habit(
 )
 
 @Serializable
+data class ActivityRecord(
+    val id: String,
+    val habitId: String,
+    val source: String,          // "huawei_health" | "strava"
+    val activityType: String,    // "walking", "running", "cycling", etc.
+    val timestamp: Long,
+    val durationMinutes: Int? = null,
+    val distanceMeters: Double? = null,
+    val steps: Long? = null,
+    val heartRateAvg: Int? = null,
+    val calories: Int? = null,
+)
+
+@Serializable
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val reducedMotion: Boolean = false,
