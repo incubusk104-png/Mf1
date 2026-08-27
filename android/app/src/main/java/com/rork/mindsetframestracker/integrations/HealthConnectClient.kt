@@ -3,6 +3,7 @@ package com.rork.mindsetframestracker.integrations
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -13,23 +14,26 @@ import com.rork.mindsetframestracker.billing.SubscriptionTier
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-sealed class HealthConnectStatus {
-    data object NotInstalled : HealthConnectStatus()
-    data object PermissionsNeeded : HealthConnectStatus()
-    data object Ready : HealthConnectStatus()
+sealed interface HealthConnectStatus {
+    data object NotInstalled : HealthConnectStatus
+    data object PermissionsNeeded : HealthConnectStatus
+    data object Ready : HealthConnectStatus
 }
 
 object MindsetHealthConnectClient {
 
     val requiredPermissions = setOf(
-        androidx.health.connect.client.permission.HealthPermission.getReadPermission(StepsRecord::class),
-        androidx.health.connect.client.permission.HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
     )
 
     fun checkStatus(context: Context): HealthConnectStatus {
         val availability = HealthConnectClient.getSdkStatus(context)
-        if (availability != HealthConnectClient.SDK_AVAILABLE) return HealthConnectStatus.NotInstalled
-        return HealthConnectStatus.PermissionsNeeded // caller verifies actual grant via permission launcher
+        return if (availability != HealthConnectClient.SDK_AVAILABLE) {
+            HealthConnectStatus.NotInstalled
+        } else {
+            HealthConnectStatus.PermissionsNeeded
+        }
     }
 
     fun permissionRequestContract() = PermissionController.createRequestPermissionResultContract()
