@@ -61,31 +61,22 @@ import kotlinx.coroutines.launch
 /** One day cell on the year heatmap. */
 data class HeatmapDay(
     val dayKey: String,
-    /** Full label for the inspect line ("Wed, Jul 22"). */
     val detailLabel: String,
-    /** Habits completed that day. */
     val done: Int,
-    /** Habit count the fraction is measured against. */
     val total: Int,
-    /** Intensity bucket: 0 = none … 4 = every habit done. */
     val level: Int,
-    /** Display name of the logged mood, null when not logged. */
     val moodName: String?,
     val isToday: Boolean,
+    /** Total steps synced from Huawei Health / Strava that day, null if none. */
+    val activitySteps: Long? = null,
+    /** Distinct sources that synced activity that day ("huawei_health", "strava"). */
+    val activitySources: List<String> = emptyList(),
 )
 
-/**
- * Past-12-months contribution grid: columns are Monday-first weeks (oldest
- * left, current week right), rows are weekdays. Null cells pad the partial
- * first and last weeks. Includes year summary stats.
- */
 data class YearHeatmapData(
     val weeks: List<List<HeatmapDay?>>,
-    /** Month abbreviation over the week where a new month begins, else null. */
     val monthLabels: List<String?>,
-    /** Days in the window with at least one check-in. */
     val activeDays: Int,
-    /** Longest consecutive run of active days in the window. */
     val bestRun: Int,
 )
 
@@ -97,9 +88,16 @@ private fun completionLevel(done: Int, total: Int): Int = when {
 private fun heatmapMoodTitle(mode: MoodMode): String =
     mode.name.lowercase().replaceFirstChar { it.uppercase() }
 
+private fun sourceLabel(source: String): String = when (source) {
+    "huawei_health" -> "Huawei Health"
+    "strava" -> "Strava"
+    else -> source.replace("_", " ").replaceFirstChar { it.uppercase() }
+}
+
 /**
- * Builds the past-12-months contribution grid from raw check-in data in one
- * pass over the check-in map (no per-day list scans).
+ * Builds the past-12-months contribution grid from raw check-in data plus
+ * synced ActivityRecord data (Huawei Health / Strava), in one pass over
+ * both maps.
  */
 fun buildYearHeatmapData(data: AppData): YearHeatmapData {
     val today = LocalDate.now()
@@ -107,10 +105,22 @@ fun buildYearHeatmapData(data: AppData): YearHeatmapData {
     val gridStart = windowStart.minusDays((windowStart.dayOfWeek.value - 1).toLong())
     val totalHabits = data.habits.size
 
-    // dayKey -> habits completed that day, counting only current habits.
     val doneByDay = HashMap<String, Int>()
     data.habits.forEach { habit ->
         data.checkIns[habit.id]?.forEach { key -> doneByDay.merge(key, 1, Int::plus) }
+    }
+
+    // dayKey -> total steps synced that day, and which sources contributed.
+    val stepsByDay = HashMap<String, Long>()
+    val sourcesByDay = HashMap<String, MutableSet<String>>()
+    data.activityRecords.forEach { record ->
+        val key = Dates.key(
+            java.time.Instant.ofEpochMilli(record.timestamp)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate(),
+        )
+        record.steps?.let { steps -> stepsByDay.merge(key, steps, Long::plus) }
+        sourcesByDay.getOrPut(key) { mutableSetOf() }.add(record.source)
     }
 
     val detailFormat = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
@@ -145,6 +155,8 @@ fun buildYearHeatmapData(data: AppData): YearHeatmapData {
                     level = completionLevel(done, totalHabits),
                     moodName = data.moodHistory[key]?.let { heatmapMoodTitle(it) },
                     isToday = date == today,
+                    activitySteps = stepsByDay[key],
+                    activitySources = sourcesByDay[key]?.toList() ?: emptyList(),
                 )
             }
         }
@@ -162,8 +174,6 @@ fun buildYearHeatmapData(data: AppData): YearHeatmapData {
         weekStart = weekStart.plusWeeks(1)
     }
 
-    // Drop the leading label when the next month starts within two columns —
-    // two labels that close together would overlap.
     if (monthLabels.size > 2 && monthLabels[0] != null &&
         (monthLabels[1] != null || monthLabels[2] != null)
     ) {
@@ -183,11 +193,6 @@ private val CellGap = 3.dp
 private val CellStep = CellSize + CellGap
 private val MonthSpace = 18.dp
 
-/**
- * Contribution-style heatmap of the past year. The grid scrolls horizontally
- * (landing on today at the right edge), sweeps in column by column, and
- * supports tap-to-inspect with a fixed weekday rail and an intensity legend.
- */
 @Composable
 fun YearHeatmap(
     data: YearHeatmapData,
@@ -234,7 +239,6 @@ fun YearHeatmap(
         }
     }
 
-    // Land on the most recent weeks — today lives at the right edge.
     var autoScrolled by remember { mutableStateOf(false) }
     LaunchedEffect(scrollState.maxValue) {
         if (!autoScrolled && scrollState.maxValue > 0) {
@@ -243,7 +247,6 @@ fun YearHeatmap(
         }
     }
 
-    // Pre-measured month labels — avoids re-measuring on every draw frame.
     val monthLayouts = remember(data.monthLabels, textMeasurer) {
         data.monthLabels.map { label ->
             label?.let {
@@ -272,7 +275,6 @@ fun YearHeatmap(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Fixed weekday rail: stays put while the grid scrolls.
             Column(verticalArrangement = Arrangement.spacedBy(CellGap)) {
                 Spacer(modifier = Modifier.height(MonthSpace - CellGap))
                 (0 until 7).forEach { index ->
@@ -337,7 +339,6 @@ fun YearHeatmap(
                     }
 
                     weeks.forEachIndexed { w, column ->
-                        // Left-to-right sweep: the wave lands on today last.
                         val colReveal = ((progress * (weeks.size + fadeCols) - w) / fadeCols)
                             .coerceIn(0f, 1f)
                         if (colReveal <= 0f) return@forEachIndexed
@@ -363,6 +364,20 @@ fun YearHeatmap(
                                     cornerRadius = CornerRadius(3.5.dp.toPx()),
                                     style = Stroke(width = ringWidth),
                                     alpha = colReveal,
+                                )
+                            }
+                            // Small dot marker in the corner when activity data
+                            // synced that day — distinguishes "habit done manually"
+                            // from "habit done + verified via Health Kit/Strava".
+                            if (day.activitySteps != null || day.activitySources.isNotEmpty()) {
+                                drawCircle(
+                                    color = selectionColor,
+                                    radius = 1.6.dp.toPx(),
+                                    center = Offset(
+                                        topLeft.x + cellPx - 2.dp.toPx(),
+                                        topLeft.y + 2.dp.toPx(),
+                                    ),
+                                    alpha = colReveal * 0.85f,
                                 )
                             }
                         }
@@ -397,7 +412,8 @@ fun YearHeatmap(
 
         val detailText = when {
             selectedDay == null -> "Tap a square to inspect a day. Swipe the grid to travel back in time."
-            selectedDay.done == 0 -> "${selectedDay.detailLabel} · No check-ins"
+            selectedDay.done == 0 && selectedDay.activitySteps == null ->
+                "${selectedDay.detailLabel} · No check-ins"
             else -> buildString {
                 append(selectedDay.detailLabel)
                 append(" · ")
@@ -408,6 +424,16 @@ fun YearHeatmap(
                 selectedDay.moodName?.let { mood ->
                     append(" · ")
                     append(mood)
+                }
+                selectedDay.activitySteps?.let { steps ->
+                    append(" · ")
+                    append(steps)
+                    append(" steps")
+                }
+                if (selectedDay.activitySources.isNotEmpty()) {
+                    append(" (")
+                    append(selectedDay.activitySources.joinToString(", ") { sourceLabel(it) })
+                    append(")")
                 }
             }
         }
