@@ -34,6 +34,17 @@ class MindsetRepository(context: Context) {
         }
     }
 
+    /** Appends one ActivityRecord and persists — used by Huawei Health / Strava sync. */
+    fun saveActivityRecord(record: ActivityRecord) {
+        val current = load()
+        val updated = current.copy(activityRecords = current.activityRecords + record)
+        save(updated)
+    }
+
+    /** Records for a specific habit, most recent first — feeds TrendChart/YearHeatmap. */
+    fun activityRecordsForHabit(habitId: String): List<ActivityRecord> =
+        load().activityRecords.filter { it.habitId == habitId }.sortedByDescending { it.timestamp }
+
     private companion object {
         const val PREFS_NAME = "mindset_frames"
         const val KEY_DATA = "app_data"
