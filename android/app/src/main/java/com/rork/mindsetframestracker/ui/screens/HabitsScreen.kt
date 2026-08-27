@@ -257,7 +257,6 @@ fun HabitsScreen(viewModel: AppViewModel) {
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
                         if (value == SwipeToDismissBoxValue.EndToStart) {
-                            // Capture history before deleting so Undo can restore it fully.
                             val removedCheckIns = viewModel.state.value.checkIns[habit.id].orEmpty()
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             viewModel.deleteHabit(habit.id)
@@ -312,7 +311,6 @@ fun HabitsScreen(viewModel: AppViewModel) {
                         }
                     },
                 ) {
-                    // Tapping the card opens the edit dialog; press compresses it.
                     val cardInteraction = remember { MutableInteractionSource() }
                     val cardPressed by cardInteraction.collectIsPressedAsState()
                     val cardScale by animateFloatAsState(
@@ -322,7 +320,6 @@ fun HabitsScreen(viewModel: AppViewModel) {
                     )
                     Card(
                         onClick = { 
-                            // Check if there are activity records for this habit to show insights, otherwise edit
                             val repo = MindsetRepository(context)
                             val records = repo.activityRecordsForHabit(habit.id)
                             if (records.isNotEmpty()) {
@@ -449,7 +446,6 @@ fun HabitsScreen(viewModel: AppViewModel) {
         HabitDialog(
             title = "Edit habit",
             initialName = habit.name,
-            // Auto-save: persists locally + queues a sync as soon as typing pauses.
             onAutoSave = { name -> viewModel.renameHabit(habit.id, name) },
             onConfirm = { name ->
                 viewModel.renameHabit(habit.id, name)
@@ -472,7 +468,7 @@ fun HabitsScreen(viewModel: AppViewModel) {
         if (latest != null) {
             ActivityInsightSheet(
                 title = "Latest ${latest.activityType}",
-                insightText = com.rork.mindsetframestracker.ui.components.RuleBasedInsight.forActivity(latest),
+                insightText = com.rork.mindsetframestracker.data.RuleBasedInsight.forActivity(latest),
                 onDismiss = { viewingActivityHabit = null },
             )
         } else {
@@ -539,9 +535,8 @@ private fun HabitDialog(
 
     DisposableEffect(Unit) { onDispose { recognizer?.destroy() } }
 
-    // Debounced auto-save: fires 700ms after the user stops typing.
     if (onAutoSave != null) {
-        androidx.compose.runtime.LaunchedEffect(name) {
+        LaunchedEffect(name) {
             if (name != initialName && name.trim().isNotEmpty()) {
                 kotlinx.coroutines.delay(700)
                 onAutoSave(name)
@@ -590,7 +585,7 @@ private fun HabitDialog(
                 if (onDelete != null) {
                     TextButton(
                         onClick = onDelete,
-                        modifier = Modifier.padding(top =.8.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
