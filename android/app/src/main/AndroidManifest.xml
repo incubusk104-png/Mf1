@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- androidx.health.connect:connect-client declares minSdk 26 in its own
+         manifest, but this app supports minSdk 24. The override below lets the
+         manifest merge succeed; MindsetHealthConnectClient (integrations/HealthConnectClient.kt)
+         guards every entry point behind Build.VERSION.SDK_INT >= 26, so the
+         library is never actually touched on API 24/25 devices. -->
+    <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Offline detection for cloud backup — lets the app queue syncs instead of failing. -->
