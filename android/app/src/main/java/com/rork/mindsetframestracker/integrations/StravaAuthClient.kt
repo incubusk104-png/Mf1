@@ -7,13 +7,16 @@ import com.rork.mindsetframestracker.BuildConfig
 import com.rork.mindsetframestracker.billing.Entitlements
 import com.rork.mindsetframestracker.billing.Feature
 import com.rork.mindsetframestracker.billing.SubscriptionTier
+import com.rork.mindsetframestracker.data.ActivityRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 /**
  * Strava OAuth2 client. Client ID/secret are NOT stored in this app —
@@ -29,7 +32,7 @@ object StravaAuthClient {
     private const val TAG = "StravaAuthClient"
 
     // Public — safe to ship in the APK, this is not a secret.
-    private const val STRAVA_CLIENT_ID_PUBLIC = "a7f174d89a804f26415155772aaabe2a9cb8" // matches STRAVA_CLIENT_ID value, public half only
+    private const val STRAVA_CLIENT_ID_PUBLIC = "a7f174d89a804f26415155772aaabe2a9cb8"
     private const val REDIRECT_URI = "mindsetframes://strava-callback"
     private const val AUTH_URL = "https://www.strava.com/oauth/mobile/authorize"
 
@@ -70,6 +73,48 @@ object StravaAuthClient {
                 put("refreshToken", tokens.refreshToken)
             },
         )
+    }
+
+    /** Fetches recent activities from Strava API and maps them to ActivityRecord models. */
+    suspend fun fetchRecentActivities(
+        accessToken: String,
+        habitId: String,
+        activityType: String,
+    ): Result<List<ActivityRecord>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("https://www.strava.com/api/v3/athlete/activities?per_page=10")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("Strava fetch failed: ${response.code}"))
+                }
+                val jsonArray = JSONArray(response.body?.string() ?: "[]")
+                val records = mutableListOf<ActivityRecord>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    records.add(
+                        ActivityRecord(
+                            id = obj.optString("id", UUID.randomUUID().toString()),
+                            habitId = habitId,
+                            source = "strava",
+                            activityType = activityType,
+                            timestamp = System.currentTimeMillis(),
+                            durationMinutes = obj.optInt("moving_time", 0) / 60,
+                            distanceMeters = obj.optDouble("distance", 0.0),
+                            heartRateAvg = if (obj.has("average_heartrate")) obj.getInt("average_heartrate") else null,
+                            calories = obj.optInt("calories", 0),
+                        ),
+                    )
+                }
+                Result.success(records)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchRecentActivities failed", e)
+            Result.failure(e)
+        }
     }
 
     private fun callEdgeFunction(payload: JSONObject): Result<StravaTokens> {
