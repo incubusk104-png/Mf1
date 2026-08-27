@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,10 +53,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rork.mindsetframestracker.data.ActivityRecord
 import com.rork.mindsetframestracker.data.AppData
 import com.rork.mindsetframestracker.data.Dates
 import com.rork.mindsetframestracker.data.MoodMode
-import com.rork.mindsetframestracker.data.completedCountOn
+import com.rork.mindsetframestracker.data.isCheckedOn
 import com.rork.mindsetframestracker.ui.AppStrings
 import com.rork.mindsetframestracker.ui.AppViewModel
 import com.rork.mindsetframestracker.ui.appStrings
@@ -67,7 +69,9 @@ import com.rork.mindsetframestracker.ui.components.YearHeatmap
 import com.rork.mindsetframestracker.ui.components.YearHeatmapData
 import com.rork.mindsetframestracker.ui.components.buildYearHeatmapData
 import com.rork.mindsetframestracker.ui.theme.LocalMoodTheme
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -107,7 +111,63 @@ private fun moodScore(mode: MoodMode): Float = when (mode) {
     MoodMode.MOTIVATED -> 1f
 }
 
-private fun buildTrendPoints(data: AppData, rangeDays: Int, s: AppStrings): List<TrendPoint> {
+/**
+ * One pass over synced [ActivityRecord]s (Huawei Health / Strava), indexed
+ * by day for O(1) lookups everywhere the Insights screen needs them:
+ * which habits a day's sync satisfies, plus the raw steps/sources for the
+ * chart tooltip. Built once and shared by every stat below instead of
+ * re-scanning the record list per calculation.
+ */
+private data class ActivityDayIndex(
+    val habitIdsByDay: Map<String, Set<String>>,
+    val stepsByDay: Map<String, Long>,
+    val sourcesByDay: Map<String, List<String>>,
+) {
+    companion object {
+        val EMPTY = ActivityDayIndex(emptyMap(), emptyMap(), emptyMap())
+    }
+}
+
+private fun buildActivityDayIndex(records: List<ActivityRecord>): ActivityDayIndex {
+    if (records.isEmpty()) return ActivityDayIndex.EMPTY
+    val habitIdsByDay = HashMap<String, MutableSet<String>>()
+    val stepsByDay = HashMap<String, Long>()
+    val sourcesByDay = HashMap<String, MutableSet<String>>()
+    records.forEach { record ->
+        val key = Dates.key(
+            Instant.ofEpochMilli(record.timestamp).atZone(ZoneId.systemDefault()).toLocalDate(),
+        )
+        habitIdsByDay.getOrPut(key) { mutableSetOf() }.add(record.habitId)
+        record.steps?.let { steps -> stepsByDay.merge(key, steps, Long::plus) }
+        sourcesByDay.getOrPut(key) { mutableSetOf() }.add(record.source)
+    }
+    return ActivityDayIndex(
+        habitIdsByDay = habitIdsByDay,
+        stepsByDay = stepsByDay,
+        sourcesByDay = sourcesByDay.mapValues { it.value.toList() },
+    )
+}
+
+/**
+ * Habits done on [dayKey]: manually checked in, OR satisfied by a synced
+ * Huawei Health / Strava activity for that habit that day — a logged run
+ * shouldn't need a duplicate manual tap to count toward completion.
+ * Kept local to this screen (rather than changing the shared
+ * `AppData.completedCountOn`) so streaks and badge tiers elsewhere keep
+ * their existing manual-check-in-only semantics; this is purely an
+ * Insights-tab reporting decision.
+ */
+private fun AppData.completedCountWithActivity(dayKey: String, activityIndex: ActivityDayIndex): Int {
+    val syncedHabitIds = activityIndex.habitIdsByDay[dayKey] ?: emptySet()
+    return habits.count { isCheckedOn(it.id, dayKey) || it.id in syncedHabitIds }
+}
+
+private fun buildTrendPoints(
+    data: AppData,
+    rangeDays: Int,
+    s: AppStrings,
+    activityIndex: ActivityDayIndex,
+): List<TrendPoint> {
     val days = Dates.lastDays(rangeDays)
     val total = data.habits.size
     val labelStep = when {
@@ -118,7 +178,7 @@ private fun buildTrendPoints(data: AppData, rangeDays: Int, s: AppStrings): List
     val detailFormat = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
     return days.mapIndexed { index, day ->
         val key = Dates.key(day)
-        val done = data.completedCountOn(key)
+        val done = data.completedCountWithActivity(key, activityIndex)
         val mood = data.moodHistory[key]
         val isLast = index == days.lastIndex
         TrendPoint(
@@ -134,6 +194,8 @@ private fun buildTrendPoints(data: AppData, rangeDays: Int, s: AppStrings): List
             moodName = mood?.let { moodTitle(it, s) },
             isToday = isLast,
             showAxisLabel = isLast || index % labelStep == 0,
+            activitySteps = activityIndex.stepsByDay[key],
+            activitySources = activityIndex.sourcesByDay[key] ?: emptyList(),
         )
     }
 }
@@ -149,28 +211,35 @@ fun InsightsScreen(viewModel: AppViewModel, modifier: Modifier = Modifier) {
     val s = appStrings()
     var rangeDays by rememberSaveable { mutableIntStateOf(7) }
 
-    val points: List<TrendPoint> = remember(data.habits, data.checkIns, data.moodHistory, rangeDays) {
-        buildTrendPoints(data, rangeDays, s)
+    // Synced Huawei Health / Strava activity, indexed once per data change
+    // and shared by the trend chart, completion rate, momentum, and the
+    // per-mood breakdown below.
+    val activityIndex: ActivityDayIndex = remember(data.activityRecords) {
+        buildActivityDayIndex(data.activityRecords)
     }
 
-    val yearHeatmap: YearHeatmapData = remember(data.habits, data.checkIns, data.moodHistory) {
+    val points: List<TrendPoint> = remember(data.habits, data.checkIns, data.moodHistory, activityIndex, rangeDays) {
+        buildTrendPoints(data, rangeDays, s, activityIndex)
+    }
+
+    val yearHeatmap: YearHeatmapData = remember(data.habits, data.checkIns, data.moodHistory, data.activityRecords) {
         buildYearHeatmapData(data)
     }
 
     val habitCount = data.habits.size
     val rangeDayList = remember(rangeDays) { Dates.lastDays(rangeDays) }
-    val totalDone = rangeDayList.sumOf { data.completedCountOn(Dates.key(it)) }
+    val totalDone = rangeDayList.sumOf { data.completedCountWithActivity(Dates.key(it), activityIndex) }
     val avgRate = if (habitCount > 0) totalDone * 100 / (habitCount * rangeDays) else 0
 
     // Momentum: this 7-day window vs the 7 days before it (percentage points).
-    val thisWeekDone = Dates.lastDays(7).sumOf { data.completedCountOn(Dates.key(it)) }
+    val thisWeekDone = Dates.lastDays(7).sumOf { data.completedCountWithActivity(Dates.key(it), activityIndex) }
     val prevWeekDone = (13 downTo 7)
         .map { LocalDate.now().minusDays(it.toLong()) }
-        .sumOf { data.completedCountOn(Dates.key(it)) }
+        .sumOf { data.completedCountWithActivity(Dates.key(it), activityIndex) }
     val weekDelta: Int? = if (habitCount == 0 || prevWeekDone == 0) null
     else (thisWeekDone * 100 / (habitCount * 7)) - (prevWeekDone * 100 / (habitCount * 7))
 
-    val moodStats: List<MoodStat> = remember(data.checkIns, data.moodHistory, rangeDays, habitCount) {
+    val moodStats: List<MoodStat> = remember(data.checkIns, data.moodHistory, activityIndex, rangeDays, habitCount) {
         if (habitCount == 0) emptyList()
         else MoodMode.entries.mapNotNull { mode ->
             val moodDays = rangeDayList.filter { data.moodHistory[Dates.key(it)] == mode }
@@ -178,7 +247,7 @@ fun InsightsScreen(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             else MoodStat(
                 mode = mode,
                 daysLogged = moodDays.size,
-                rate = moodDays.sumOf { data.completedCountOn(Dates.key(it)) } * 100 /
+                rate = moodDays.sumOf { data.completedCountWithActivity(Dates.key(it), activityIndex) } * 100 /
                     (habitCount * moodDays.size),
             )
         }.sortedByDescending { it.rate }
