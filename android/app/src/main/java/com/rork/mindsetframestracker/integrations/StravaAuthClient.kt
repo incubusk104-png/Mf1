@@ -32,13 +32,11 @@ object StravaAuthClient {
 
     private const val TAG = "StravaAuthClient"
 
-    // Public — safe to ship in the APK, this is not a secret.
     private const val STRAVA_CLIENT_ID_PUBLIC = "a7f174d89a804f26415155772aaabe2a9cb8"
     private const val REDIRECT_URI = "mindsetframes://strava-callback"
     private const val AUTH_URL = "https://www.strava.com/oauth/mobile/authorize"
 
-    private val EDGE_FUNCTION_URL =
-        "${BuildConfig.SUPABASE_URL}/functions/v1/strava-token-exchange"
+    private val EDGE_FUNCTION_URL = "${BuildConfig.SUPABASE_URL}/functions/v1/strava-token-exchange"
 
     private val httpClient = OkHttpClient()
     private val jsonMediaType = "application/json".toMediaType()
@@ -66,7 +64,7 @@ object StravaAuthClient {
 
     suspend fun refreshTokenIfNeeded(tokens: StravaTokens): Result<StravaTokens> = withContext(Dispatchers.IO) {
         if (tokens.expiresAt > System.currentTimeMillis() / 1000 + 300) {
-            return@withContext Result.success(tokens) // still valid, 5min buffer
+            return@withContext Result.success(tokens)
         }
         callEdgeFunction(
             JSONObject().apply {
@@ -96,6 +94,7 @@ object StravaAuthClient {
                 val jsonArray = JSONArray(response.body?.string() ?: "[]")
                 val repo = MindsetRepository(context)
                 var saved = 0
+                
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
                     val record = ActivityRecord(
