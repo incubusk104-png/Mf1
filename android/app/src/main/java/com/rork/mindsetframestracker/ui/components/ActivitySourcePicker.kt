@@ -5,11 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -41,6 +44,7 @@ data class ActivitySourceOption(
  * Strava always listed but shown locked if not entitled, so the user sees
  * the upsell rather than the option silently vanishing.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivitySourcePickerSheet(
     habitIconId: String,
@@ -74,7 +78,7 @@ fun ActivitySourcePickerSheet(
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
             )
-            Spacer(modifier = Modifier.padding(top = 12.dp)) {}
+            Spacer(modifier = Modifier.height(12.dp))
 
             options.forEach { option ->
                 Row(
