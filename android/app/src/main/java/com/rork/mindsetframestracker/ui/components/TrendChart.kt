@@ -57,7 +57,17 @@ data class TrendPoint(
     val moodName: String?,
     val isToday: Boolean,
     val showAxisLabel: Boolean,
+    /** Total steps synced from Huawei Health / Strava that day, null if none. */
+    val activitySteps: Long? = null,
+    /** Distinct sources that synced activity that day ("huawei_health", "strava"). */
+    val activitySources: List<String> = emptyList(),
 )
+
+private fun trendSourceLabel(source: String): String = when (source) {
+    "huawei_health" -> "Huawei Health"
+    "strava" -> "Strava"
+    else -> source.replace("_", " ").replaceFirstChar { it.uppercase() }
+}
 
 /**
  * Smooth dual-series line chart: a filled gradient line for habit completion
@@ -147,6 +157,16 @@ fun TrendChart(
                 point.moodName?.let { mood ->
                     append("  ·  ")
                     append(mood)
+                }
+                point.activitySteps?.let { steps ->
+                    append("  ·  ")
+                    append(steps)
+                    append(" steps")
+                }
+                if (point.activitySources.isNotEmpty()) {
+                    append(" (")
+                    append(point.activitySources.joinToString(", ") { trendSourceLabel(it) })
+                    append(")")
                 }
             }
             textMeasurer.measure(
