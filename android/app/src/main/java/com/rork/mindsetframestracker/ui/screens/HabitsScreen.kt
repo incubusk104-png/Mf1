@@ -77,10 +77,12 @@ import com.rork.mindsetframestracker.data.MAX_FREE_HABITS
 import com.rork.mindsetframestracker.data.hasFeatureAccess
 import com.rork.mindsetframestracker.data.sortedHabits
 import com.rork.mindsetframestracker.data.streakFor
+import com.rork.mindsetframestracker.data.MindsetRepository
 import com.rork.mindsetframestracker.ui.AppViewModel
 import com.rork.mindsetframestracker.ui.appStrings
 import com.rork.mindsetframestracker.ui.components.BulkAddHabitsSheet
 import com.rork.mindsetframestracker.ui.components.PremiumSheet
+import com.rork.mindsetframestracker.ui.components.ActivityInsightSheet
 import com.rork.mindsetframestracker.util.VoiceInputClient
 import android.speech.SpeechRecognizer
 import androidx.activity.result.contract.ActivityResultContracts
@@ -93,8 +95,10 @@ import com.rork.mindsetframestracker.ui.theme.LocalMoodTheme
 fun HabitsScreen(viewModel: AppViewModel) {
     val data by viewModel.state.collectAsStateWithLifecycle()
     val activity = androidx.activity.compose.LocalActivity.current
+    val context = LocalContext.current
     val s = appStrings()
     var editingHabit by remember { mutableStateOf<Habit?>(null) }
+    var viewingActivityHabit by remember { mutableStateOf<Habit?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showBulkAdd by remember { mutableStateOf(false) }
     var showPremiumSheet by remember { mutableStateOf(false) }
@@ -317,7 +321,16 @@ fun HabitsScreen(viewModel: AppViewModel) {
                         label = "habitCardPress",
                     )
                     Card(
-                        onClick = { editingHabit = habit },
+                        onClick = { 
+                            // Check if there are activity records for this habit to show insights, otherwise edit
+                            val repo = MindsetRepository(context)
+                            val records = repo.activityRecordsForHabit(habit.id)
+                            if (records.isNotEmpty()) {
+                                viewingActivityHabit = habit
+                            } else {
+                                editingHabit = habit
+                            }
+                        },
                         interactionSource = cardInteraction,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -452,6 +465,22 @@ fun HabitsScreen(viewModel: AppViewModel) {
         )
     }
 
+    viewingActivityHabit?.let { habit ->
+        val repo = remember { MindsetRepository(context) }
+        val records = repo.activityRecordsForHabit(habit.id)
+        val latest = records.firstOrNull()
+        if (latest != null) {
+            ActivityInsightSheet(
+                title = "Latest ${latest.activityType}",
+                insightText = com.rork.mindsetframestracker.ui.components.RuleBasedInsight.forActivity(latest),
+                onDismiss = { viewingActivityHabit = null },
+            )
+        } else {
+            viewingActivityHabit = null
+            editingHabit = habit
+        }
+    }
+
     if (showBulkAdd) {
         BulkAddHabitsSheet(
             suggestions = suggestions,
@@ -561,7 +590,7 @@ private fun HabitDialog(
                 if (onDelete != null) {
                     TextButton(
                         onClick = onDelete,
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier.padding(top =.8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
