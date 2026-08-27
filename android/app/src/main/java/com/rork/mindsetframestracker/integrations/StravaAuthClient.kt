@@ -1,5 +1,6 @@
 package com.rork.mindsetframestracker.integrations
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -8,6 +9,7 @@ import com.rork.mindsetframestracker.billing.Entitlements
 import com.rork.mindsetframestracker.billing.Feature
 import com.rork.mindsetframestracker.billing.SubscriptionTier
 import com.rork.mindsetframestracker.data.ActivityRecord
+import com.rork.mindsetframestracker.data.MindsetRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,7 +18,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 /**
  * Strava OAuth2 client. Client ID/secret are NOT stored in this app —
@@ -75,12 +76,13 @@ object StravaAuthClient {
         )
     }
 
-    /** Fetches recent activities from Strava API and maps them to ActivityRecord models. */
+    /** Fetches recent activities from Strava API, persists them locally, and returns saved count. */
     suspend fun fetchRecentActivities(
+        context: Context,
         accessToken: String,
         habitId: String,
         activityType: String,
-    ): Result<List<ActivityRecord>> = withContext(Dispatchers.IO) {
+    ): Result<Int> = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
                 .url("https://www.strava.com/api/v3/athlete/activities?per_page=10")
@@ -92,24 +94,25 @@ object StravaAuthClient {
                     return@withContext Result.failure(Exception("Strava fetch failed: ${response.code}"))
                 }
                 val jsonArray = JSONArray(response.body?.string() ?: "[]")
-                val records = mutableListOf<ActivityRecord>()
+                val repo = MindsetRepository(context)
+                var saved = 0
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
-                    records.add(
-                        ActivityRecord(
-                            id = obj.optString("id", UUID.randomUUID().toString()),
-                            habitId = habitId,
-                            source = "strava",
-                            activityType = activityType,
-                            timestamp = System.currentTimeMillis(),
-                            durationMinutes = obj.optInt("moving_time", 0) / 60,
-                            distanceMeters = obj.optDouble("distance", 0.0),
-                            heartRateAvg = if (obj.has("average_heartrate")) obj.getInt("average_heartrate") else null,
-                            calories = obj.optInt("calories", 0),
-                        ),
+                    val record = ActivityRecord(
+                        id = "strava_${obj.optLong("id")}",
+                        habitId = habitId,
+                        source = "strava",
+                        activityType = activityType,
+                        timestamp = System.currentTimeMillis(),
+                        durationMinutes = obj.optInt("moving_time", 0) / 60,
+                        distanceMeters = obj.optDouble("distance", 0.0),
+                        heartRateAvg = if (obj.has("average_heartrate")) obj.getInt("average_heartrate") else null,
+                        calories = obj.optInt("calories", 0),
                     )
+                    repo.saveActivityRecord(record)
+                    saved++
                 }
-                Result.success(records)
+                Result.success(saved)
             }
         } catch (e: Exception) {
             Log.e(TAG, "fetchRecentActivities failed", e)
