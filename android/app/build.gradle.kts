@@ -145,26 +145,14 @@ dependencies {
     // Huawei App Update (JosApps / AppUpdateClient live here)
     implementation(libs.huawei.update)
 
-    // Huawei Health Kit. 6.13.0.302 does not exist on Google Maven, Maven
-    // Central, or Huawei's own repo (confirmed against all three — the
-    // build failed with "Could not find com.huawei.hms:health:6.13.0.302"
-    // on every one of them). Pinned to 6.11.0.300 to match the base/iap
-    // release train below, which is the one already confirmed resolvable
-    // in this project. If this specific version 404s too, check
-    // https://developer.huawei.com/repo/com/huawei/hms/health/maven-metadata.xml
-    // for the actual list of versions Huawei has published for this artifact.
+    // Huawei Health Kit
     implementation("com.huawei.hms:health:6.11.0.300")
 
-    // HMS Core modules. Note: base/iap do NOT share hwid/appservice's version
-    // numbering (6.14.0.300 isn't published for base/iap) — Huawei versions
-    // each HMS module independently, so don't assume they move in lockstep.
-    // 6.11.0.300 is the latest base/iap release that's actually resolvable.
+    // HMS Core modules
     implementation("com.huawei.hms:base:6.11.0.300")
     implementation("com.huawei.hms:iap:6.11.0.300")
 
-    // AndroidX Health Connect (Google's on-device health data API — the
-    // HealthConnectClient/HealthPermission/StepsRecord/SleepSessionRecord
-    // symbols used in integrations/HealthConnectClient.kt live here).
+    // AndroidX Health Connect
     implementation(libs.androidx.health.connect.client)
 
     implementation(libs.androidx.work.runtime.ktx)
