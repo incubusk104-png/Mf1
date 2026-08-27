@@ -56,6 +56,7 @@ import com.rork.mindsetframestracker.data.AppData
 import com.rork.mindsetframestracker.data.Dates
 import com.rork.mindsetframestracker.data.MoodMode
 import com.rork.mindsetframestracker.data.completedCountOn
+import com.rork.mindsetframestracker.ui.AppStrings
 import com.rork.mindsetframestracker.ui.AppViewModel
 import com.rork.mindsetframestracker.ui.appStrings
 import com.rork.mindsetframestracker.ui.components.EntranceItem
@@ -71,12 +72,14 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
-private data class RangeOption(val labelKey: String, val days: Int)
+/** [label] resolves lazily against [AppStrings] so range options stay locale-correct
+ * without any string-matching or prefix-stripping tricks. */
+private data class RangeOption(val days: Int, val label: (AppStrings) -> String)
 
 private val rangeOptions = listOf(
-    RangeOption("insightsWeek", 7),
-    RangeOption("insights2Weeks", 14),
-    RangeOption("insightsMonth", 30),
+    RangeOption(7) { it.insightsWeek },
+    RangeOption(14) { it.insights2Weeks },
+    RangeOption(30) { it.insightsMonth },
 )
 
 /** Average completion on days a given mood was logged, within the range. */
@@ -89,13 +92,12 @@ private fun moodIcon(mode: MoodMode): ImageVector = when (mode) {
     MoodMode.OVERWHELMED -> Icons.Outlined.Cloud
 }
 
-private fun moodTitle(mode: MoodMode, s: com.rork.mindsetframestracker.ui.AppStrings): String =
-    when (mode) {
-        MoodMode.CALM -> s.moodCalm
-        MoodMode.FOCUSED -> s.moodFocused
-        MoodMode.MOTIVATED -> s.moodMotivated
-        MoodMode.OVERWHELMED -> s.moodOverwhelmed
-    }
+private fun moodTitle(mode: MoodMode, s: AppStrings): String = when (mode) {
+    MoodMode.CALM -> s.moodCalm
+    MoodMode.FOCUSED -> s.moodFocused
+    MoodMode.MOTIVATED -> s.moodMotivated
+    MoodMode.OVERWHELMED -> s.moodOverwhelmed
+}
 
 /** Mood mapped to chart height: Overwhelmed low → Motivated high. */
 private fun moodScore(mode: MoodMode): Float = when (mode) {
@@ -105,7 +107,7 @@ private fun moodScore(mode: MoodMode): Float = when (mode) {
     MoodMode.MOTIVATED -> 1f
 }
 
-private fun buildTrendPoints(data: AppData, rangeDays: Int, s: com.rork.mindsetframestracker.ui.AppStrings): List<TrendPoint> {
+private fun buildTrendPoints(data: AppData, rangeDays: Int, s: AppStrings): List<TrendPoint> {
     val days = Dates.lastDays(rangeDays)
     val total = data.habits.size
     val labelStep = when {
@@ -141,9 +143,8 @@ private fun buildTrendPoints(data: AppData, rangeDays: Int, s: com.rork.mindsetf
  * selectable range, momentum stats, and a per-mood consistency breakdown.
  */
 @Composable
-fun InsightsScreen(viewModel: AppViewModel) {
+fun InsightsScreen(viewModel: AppViewModel, modifier: Modifier = Modifier) {
     val data by viewModel.state.collectAsStateWithLifecycle()
-    val moodTheme = LocalMoodTheme.current
     val haptics = LocalHapticFeedback.current
     val s = appStrings()
     var rangeDays by rememberSaveable { mutableIntStateOf(7) }
@@ -183,8 +184,13 @@ fun InsightsScreen(viewModel: AppViewModel) {
         }.sortedByDescending { it.rate }
     }
 
+    // Reuse the selected range's own segmented-control label as the stat
+    // caption — locale-correct by construction, replaces the old
+    // string-prefix-stripping hack that only worked for English/Tagalog.
+    val selectedRangeLabel = rangeOptions.first { it.days == rangeDays }.label(s)
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
@@ -231,7 +237,7 @@ fun InsightsScreen(viewModel: AppViewModel) {
                         icon = Icons.Outlined.TaskAlt,
                         value = "$avgRate%",
                         label = s.insightsAvgCompletion,
-                        caption = s.insightsLastDays.format(rangeDays).replace("Last ", "").replace("Nakaraang ", ""),
+                        caption = selectedRangeLabel,
                         modifier = Modifier.weight(1f),
                     )
                     val deltaText = when {
@@ -272,7 +278,28 @@ fun InsightsScreen(viewModel: AppViewModel) {
                 MoodConsistencyCard(moodStats = moodStats)
             }
         }
+    }
+}
 
+/**
+ * Shared card chrome for every Insights section — single source of truth
+ * for shape/color so a future style change is a one-line edit, not five.
+ */
+@Composable
+private fun InsightsCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            content = content,
+        )
     }
 }
 
@@ -315,13 +342,7 @@ private fun RangeSelector(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = option.labelKey.let { key ->
-                        when (key) {
-                            "insightsWeek" -> s.insightsWeek
-                            "insights2Weeks" -> s.insights2Weeks
-                            else -> s.insightsMonth
-                        }
-                    },
+                    text = option.label(s),
                     style = MaterialTheme.typography.labelLarge,
                     color = textColor,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
@@ -340,83 +361,74 @@ private fun TrendCard(
 ) {
     val moodTheme = LocalMoodTheme.current
     val s = appStrings()
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+    InsightsCard(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = s.insightsCompletionTrend,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = s.insightsLastDays.format(rangeDays),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = s.insightsCompletionTrend,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(18.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Brush.horizontalGradient(moodTheme.gradient)),
                 )
                 Text(
-                    text = s.insightsLastDays.format(rangeDays),
+                    text = s.insightsHabitsDone,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     Box(
                         modifier = Modifier
-                            .width(18.dp)
+                            .width(7.dp)
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(Brush.horizontalGradient(moodTheme.gradient)),
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant),
                     )
-                    Text(
-                        text = s.insightsHabitsDone,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .width(7.dp)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant),
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(7.dp)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant),
-                        )
-                    }
-                    Text(
-                        text = s.insightsMoodLevel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Box(
+                        modifier = Modifier
+                            .width(7.dp)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant),
                     )
                 }
+                Text(
+                    text = s.insightsMoodLevel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            TrendChart(points = points)
-            Text(
-                text = s.insightsMoodChartHint,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            )
         }
+        TrendChart(points = points)
+        Text(
+            text = s.insightsMoodChartHint,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+        )
     }
 }
 
@@ -430,41 +442,32 @@ private fun YearHeatmapCard(
     modifier: Modifier = Modifier,
 ) {
     val s = appStrings()
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = s.insightsYearInFrames,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = s.insightsPast12Months,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+    InsightsCard(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = if (heatmap.activeDays == 0) {
-                    s.insightsNoCheckIns
-                } else {
-                    val dayWord = if (heatmap.activeDays == 1) s.insightsDay else s.insightsDays
-                    val runWord = if (heatmap.bestRun == 1) s.insightsDay else s.insightsDays
-                    "${s.insightsActiveDays.format(heatmap.activeDays, dayWord)} · ${s.insightsLongestRun.format(heatmap.bestRun, runWord)}"
-                },
-                style = MaterialTheme.typography.bodyMedium,
+                text = s.insightsYearInFrames,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = s.insightsPast12Months,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            YearHeatmap(data = heatmap)
         }
+        Text(
+            text = if (heatmap.activeDays == 0) {
+                s.insightsNoCheckIns
+            } else {
+                val dayWord = if (heatmap.activeDays == 1) s.insightsDay else s.insightsDays
+                val runWord = if (heatmap.bestRun == 1) s.insightsDay else s.insightsDays
+                "${s.insightsActiveDays.format(heatmap.activeDays, dayWord)} · ${s.insightsLongestRun.format(heatmap.bestRun, runWord)}"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        YearHeatmap(data = heatmap)
     }
 }
 
@@ -521,37 +524,28 @@ private fun MoodConsistencyCard(
     modifier: Modifier = Modifier,
 ) {
     val s = appStrings()
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+    InsightsCard(modifier = modifier) {
+        Text(
+            text = s.insightsMoodConsistency,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (moodStats.isEmpty()) {
             Text(
-                text = s.insightsMoodConsistency,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                text = s.insightsPickMood,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (moodStats.isEmpty()) {
+        } else {
+            if (moodStats.first().rate > 0) {
                 Text(
-                    text = s.insightsPickMood,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = s.insightsShowUpStrongest.format(moodTitle(moodStats.first().mode, s)),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else {
-                if (moodStats.first().rate > 0) {
-                    Text(
-                        text = s.insightsShowUpStrongest.format(moodTitle(moodStats.first().mode, s)),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                moodStats.forEachIndexed { index, stat ->
-                    MoodStatRow(stat = stat, index = index)
-                }
+            }
+            moodStats.forEachIndexed { index, stat ->
+                MoodStatRow(stat = stat, index = index)
             }
         }
     }
@@ -641,15 +635,11 @@ private fun MoodStatRow(
 @Composable
 private fun EmptyInsightsCard(modifier: Modifier = Modifier) {
     val s = appStrings()
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    InsightsCard(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(28.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icon(
